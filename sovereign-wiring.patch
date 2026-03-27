@@ -1,0 +1,2774 @@
+diff --git a/src/app/connections/page.tsx b/src/app/connections/page.tsx
+index bfa9253..c646fe8 100644
+--- a/src/app/connections/page.tsx
++++ b/src/app/connections/page.tsx
+@@ -38,16 +38,6 @@ export default function Connections() {
+     
+     if (data) {
+       setConnections(data as Connection[]);
+-    } else {
+-      // Mock data for initial build momentum
+-      const mock: Connection[] = [
+-        { id: '1', name: 'YouTube Analytics', provider: 'google', status: 'active', via_zapier: false },
+-        { id: '2', name: 'Telegram Bot', provider: 'telegram', status: 'active', via_zapier: false },
+-        { id: '3', name: 'Notion Brain', provider: 'notion', status: 'inactive', via_zapier: true },
+-        { id: '4', name: 'Stripe Payments', provider: 'stripe', status: 'active', via_zapier: false },
+-        { id: '5', name: 'ClickUp Tasks', provider: 'clickup', status: 'inactive', via_zapier: true },
+-      ];
+-      setConnections(mock);
+     }
+     setLoading(false);
+   }
+@@ -303,31 +293,4 @@ export default function Connections() {
+           color: var(--color-accent-secondary);
+         }
+ 
+-        .ghost-content {
+-          display: flex;
+-          flex-direction: column;
+-          align-items: center;
+-          gap: 12px;
+-        }
+-
+-        .ghost-icon {
+-          width: 48px;
+-          height: 48px;
+-          border: 1px dashed var(--border-color);
+-          border-radius: 50%;
+-          display: flex;
+-          align-items: center;
+-          justify-content: center;
+-          color: var(--color-text-muted);
+-        }
+-
+-        .ghost-label {
+-          font-size: 11px;
+-          font-weight: 800;
+-          letter-spacing: 0.1em;
+-          color: var(--color-text-muted);
+-        }
+-      `}</style>
+-    </div>
+-  );
+-}
++        .gh
+\ No newline at end of file
+diff --git a/src/app/content/page.tsx b/src/app/content/page.tsx
+index cc8c349..694dfad 100644
+--- a/src/app/content/page.tsx
++++ b/src/app/content/page.tsx
+@@ -41,20 +41,11 @@ export default function ContentIntel() {
+       .select('*')
+       .order('created_at', { ascending: false });
+ 
+-    if (data && data.length > 0) {
++    if (data) {
+       setItems(data as ContentItem[]);
+       const totalViews = data.reduce((sum, i) => sum + (i.views || 0), 0);
+-      const avgEng = data.reduce((sum, i) => sum + (i.engagement || 0), 0) / data.length;
++      const avgEng = data.length > 0 ? data.reduce((sum, i) => sum + (i.engagement || 0), 0) / data.length : 0;
+       setStats({ totalViews, avgEngagement: avgEng, tracked: data.length });
+-    } else {
+-      // Mock data for initial build momentum
+-      const mockItems: ContentItem[] = [
+-        { id: '1', title: 'The Simulation is Failing', thumbnail_url: '', views: 12500, engagement: 4.8, outlier_score: 2.4, created_at: '2026-03-20' },
+-        { id: '2', title: 'Escape Velocity Protocol', thumbnail_url: '', views: 8200, engagement: 3.2, outlier_score: 1.1, created_at: '2026-03-18' },
+-        { id: '3', title: 'Biological Drag Explained', thumbnail_url: '', views: 3400, engagement: 1.5, outlier_score: 0.6, created_at: '2026-03-15' },
+-      ];
+-      setItems(mockItems);
+-      setStats({ totalViews: 24100, avgEngagement: 3.1, tracked: 3 });
+     }
+     setLoading(false);
+   }
+@@ -292,29 +283,4 @@ export default function ContentIntel() {
+         }
+ 
+         .content-footer {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: center;
+-          padding-top: 16px;
+-          border-top: 1px solid var(--border-color);
+-        }
+-
+-        .content-date {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .btn-icon-small {
+-          background: transparent;
+-          border: none;
+-          color: var(--color-text-muted);
+-          cursor: pointer;
+-          transition: var(--transition-fast);
+-        }
+-
+-        .btn-icon-small:hover { color: var(--color-accent-primary); }
+-      `}</style>
+-    </div>
+-  );
+-}
++         
+\ No newline at end of file
+diff --git a/src/app/finance/page.tsx b/src/app/finance/page.tsx
+index 3f160bf..f68e7bb 100644
+--- a/src/app/finance/page.tsx
++++ b/src/app/finance/page.tsx
+@@ -50,7 +50,7 @@ export default function RevenueGrid() {
+       .select('*')
+       .order('created_at', { ascending: true });
+     
+-    if (data && data.length > 0) {
++    if (data) {
+       setPayments(data as PaymentEntry[]);
+       const total = data.reduce((sum, p) => sum + Number(p.amount), 0);
+       setTotalRevenue(total);
+@@ -73,20 +73,6 @@ export default function RevenueGrid() {
+       setSources(Object.entries(bySource).map(([source, total], i) => ({
+         source, total, color: sourceColors[i % sourceColors.length]
+       })));
+-    } else {
+-      // Mock data for visual demonstration
+-      setTotalRevenue(24750);
+-      setMonthlyData([
+-        { month: 'Dec \'25', amount: 3200 },
+-        { month: 'Jan \'26', amount: 5800 },
+-        { month: 'Feb \'26', amount: 7250 },
+-        { month: 'Mar \'26', amount: 8500 },
+-      ]);
+-      setSources([
+-        { source: 'Protocol 77', total: 12400, color: '#C9A84C' },
+-        { source: 'Inner Circle', total: 8500, color: '#7C5CFC' },
+-        { source: 'Firmware Update', total: 3850, color: '#3EF7E8' },
+-      ]);
+     }
+     setLoading(false);
+   }
+@@ -249,13 +235,4 @@ export default function RevenueGrid() {
+         .source-bar { height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; overflow: hidden; }
+         .source-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+ 
+-        .projection-section { padding-top: 24px; border-top: 1px solid var(--border-color); }
+-        .projection-title { font-size: 11px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 0.15em; margin-bottom: 16px; }
+-        .projection-stats { display: flex; gap: 32px; }
+-        .proj-stat { display: flex; flex-direction: column; gap: 4px; }
+-        .proj-label { font-size: 10px; font-weight: 700; color: var(--color-text-muted); letter-spacing: 0.05em; }
+-        .proj-value { font-size: 18px; font-weight: 800; font-family: var(--font-mono); }
+-      `}</style>
+-    </div>
+-  );
+-}
++        .projection-section { padding-top: 24px;
+\ No newline at end of file
+diff --git a/src/app/glitch/page.tsx b/src/app/glitch/page.tsx
+index 83c37f0..d2558e3 100644
+--- a/src/app/glitch/page.tsx
++++ b/src/app/glitch/page.tsx
+@@ -43,19 +43,8 @@ export default function GlitchLog() {
+       .select('*')
+       .order('created_at', { ascending: false });
+     
+-    if (data && data.length > 0) {
++    if (data) {
+       setGlitches(data as GlitchEntry[]);
+-    } else {
+-      // Mock data for visual demonstration
+-      const mock: GlitchEntry[] = [
+-        { id: '1', title: 'Biological Drag Spike', description: 'Legacy pattern detected: procrastination loop triggered at 02:00 UTC. System override engaged.', severity: 'Critical', source: 'Habit Monitor', resolved: false, created_at: '2026-03-23T07:00:00Z' },
+-        { id: '2', title: 'Revenue Pipeline Stall', description: 'No new payment events detected in 72h window. Content velocity may need boost.', severity: 'Warning', source: 'Revenue Grid', resolved: false, created_at: '2026-03-22T14:30:00Z' },
+-        { id: '3', title: 'Agent Heartbeat Timeout', description: 'Sapphire failed to respond within 30s window. Auto-recovered after retry.', severity: 'Warning', source: 'Maven Crew', resolved: true, created_at: '2026-03-22T09:15:00Z' },
+-        { id: '4', title: 'Content Sync Complete', description: 'YouTube analytics data successfully synchronized. All metrics nominal.', severity: 'Info', source: 'Content Intel', resolved: true, created_at: '2026-03-21T18:00:00Z' },
+-        { id: '5', title: 'Frequency Drift Detected', description: 'System prompt temperature variance exceeded threshold (0.9 > 0.7). Auto-corrected.', severity: 'Critical', source: 'Settings Monitor', resolved: true, created_at: '2026-03-21T12:45:00Z' },
+-        { id: '6', title: 'Memory Archive Expansion', description: 'Knowledge nodes exceeded 500 entries. Index optimization recommended.', severity: 'Info', source: 'Second Brain', resolved: false, created_at: '2026-03-20T21:30:00Z' },
+-      ];
+-      setGlitches(mock);
+     }
+     setLoading(false);
+   }
+@@ -271,60 +260,4 @@ export default function GlitchLog() {
+ 
+         .severity-icon.critical { background: rgba(217, 85, 85, 0.15); color: var(--color-accent-danger); }
+         .severity-icon.warning { background: rgba(201, 168, 76, 0.15); color: var(--color-accent-primary); }
+-        .severity-icon.info { background: rgba(62, 247, 232, 0.1); color: var(--color-accent-cyan); }
+-
+-        .glitch-title { font-size: 15px; font-weight: 700; }
+-
+-        .resolved-badge {
+-          font-size: 9px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          background: rgba(46, 204, 143, 0.1);
+-          color: var(--color-accent-success);
+-          padding: 2px 8px;
+-          border-radius: 4px;
+-          border: 1px solid rgba(46, 204, 143, 0.2);
+-        }
+-
+-        .glitch-time {
+-          display: flex;
+-          align-items: center;
+-          gap: 6px;
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-          white-space: nowrap;
+-        }
+-
+-        .glitch-description {
+-          font-size: 13px;
+-          color: var(--color-text-secondary);
+-          line-height: 1.6;
+-          margin-bottom: 16px;
+-        }
+-
+-        .glitch-footer { display: flex; justify-content: space-between; align-items: center; }
+-
+-        .glitch-source {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-accent-secondary);
+-          opacity: 0.7;
+-        }
+-
+-        .empty-state {
+-          display: flex;
+-          flex-direction: column;
+-          align-items: center;
+-          justify-content: center;
+-          padding: 100px 0;
+-          color: var(--color-text-muted);
+-          border: 1px dashed var(--border-color);
+-          border-radius: 16px;
+-        }
+-
+-        .empty-icon { opacity: 0.2; margin-bottom: 24px; }
+-      `}</style>
+-    </div>
+-  );
+-}
++        .severity-ico
+\ No newline at end of file
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 10a357f..c19ecb4 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,1069 +1,1177 @@
+-"use client";
+-
+-import { useEffect, useState, useMemo } from "react";
+-import { supabase } from "@/lib/supabase";
+-import {
+-  Activity,
+-  Terminal,
+-  TrendingUp,
+-  Users,
+-  Clock,
+-  Wifi,
+-  WifiOff,
+-  Bot,
+-  AlertTriangle,
+-  DollarSign,
+-  Play,
+-  FileText,
+-  Layers,
+-  Target,
+-} from "lucide-react";
+-
+-/* ──────────────────── TYPES ──────────────────── */
+-
+-type MissionMetrics = {
+-  liberation_count: number;
+-  total_leads: number;
+-  p77_conversions: number;
+-  manifesto_conversions: number;
+-  inner_circle_conversions: number;
+-};
+-
+-type RevenueEntry = {
+-  id: string;
+-  amount: number;
+-  source: string;
+-  product_id: string;
+-  timestamp: string;
+-};
+-
+-type AgentHistoryEntry = {
+-  id: string;
+-  agent_name: string;
+-  role: string;
+-  content: string;
+-  created_at: string;
+-};
+-
+-type CommandQueueEntry = {
+-  id: string;
+-  command: string;
+-  status: string;
+-  agent_name: string;
+-  created_at: string;
+-};
+-
+-type ContentTransmission = {
+-  id: string;
+-  intent_tag: string;
+-  source: string;
+-  status: string;
+-  created_at: string;
+-};
+-
+-type VidRushEntry = {
+-  id: string;
+-  topic: string;
+-  status: string;
+-  created_at: string;
+-};
+-
+-type GlitchEntry = {
+-  id: string;
+-  severity: string;
+-  description: string;
+-  detected_at: string;
+-};
+-
+-/* ──────────────── AGENT CONFIG ──────────────── */
+-
+-const MAVEN_CREW = [
+-  { name: "Veritas", role: "Truth Engine & Research", color: "#43e97b" },
+-  { name: "Sapphire", role: "Core API & Orchestration", color: "#4facfe" },
+-  { name: "Alfred", role: "Operations & Automation", color: "#ff9a9e" },
+-  { name: "Yuki", role: "Creative & Content", color: "#fddb92" },
+-  { name: "Anita", role: "Outreach & Nurture", color: "#ebedee" },
+-  { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a" },
+-];
+-
+-/* ──────────────── HELPERS ──────────────── */
+-
+-function daysUntil(target: string): number {
+-  return Math.max(
+-    0,
+-    Math.ceil(
+-      (new Date(target).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+-    )
+-  );
+-}
+-
+-function timeAgo(dateStr: string): string {
+-  const seconds = Math.floor(
+-    (Date.now() - new Date(dateStr).getTime()) / 1000
+-  );
+-  if (seconds < 60) return `${seconds}s ago`;
+-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+-  return `${Math.floor(seconds / 86400)}d ago`;
+-}
+-
+-function isOnline(lastSeen: string): boolean {
+-  return Date.now() - new Date(lastSeen).getTime() < 10 * 60 * 1000;
+-}
+-
+-/* ══════════════════════════════════════════════════
+-   CEO MISSION CONTROL — SINGLE PANE OF GLASS
+-   ══════════════════════════════════════════════════ */
+-
+-export default function MissionControl() {
+-  const [metrics, setMetrics] = useState<MissionMetrics | null>(null);
+-  const [revenue, setRevenue] = useState<RevenueEntry[]>([]);
+-  const [totalRevenue, setTotalRevenue] = useState(0);
+-  const [agentHistory, setAgentHistory] = useState<AgentHistoryEntry[]>([]);
+-  const [commandQueue, setCommandQueue] = useState<CommandQueueEntry[]>([]);
+-  const [contentTransmissions, setContentTransmissions] = useState<ContentTransmission[]>([]);
+-  const [vidRush, setVidRush] = useState<VidRushEntry[]>([]);
+-  const [glitches, setGlitches] = useState<GlitchEntry[]>([]);
+-
+-  /* ── FETCH FUNCTIONS ── */
+-
+-  async function fetchMetrics() {
+-    const { data } = await supabase
+-      .from("mission_metrics")
+-      .select("*")
+-      .limit(1)
+-      .single();
+-    if (data) setMetrics(data);
+-  }
+-
+-  async function fetchRevenue() {
+-    const { data } = await supabase
+-      .from("revenue_log")
+-      .select("*")
+-      .order("timestamp", { ascending: false })
+-      .limit(10);
+-    if (data) {
+-      setRevenue(data);
+-    }
+-    // Also get total
+-    const { data: allRev } = await supabase
+-      .from("revenue_log")
+-      .select("amount");
+-    if (allRev) {
+-      setTotalRevenue(allRev.reduce((s, r) => s + Number(r.amount), 0));
+-    }
+-  }
+-
+-  async function fetchAgentHistory() {
+-    const { data } = await supabase
+-      .from("agent_history")
+-      .select("*")
+-      .order("created_at", { ascending: false })
+-      .limit(50);
+-    if (data) setAgentHistory(data);
+-  }
+-
+-  async function fetchCommandQueue() {
+-    const { data } = await supabase
+-      .from("command_queue")
+-      .select("*")
+-      .in("status", ["pending", "active", "Pending", "Active"])
+-      .order("created_at", { ascending: false });
+-    if (data) setCommandQueue(data);
+-  }
+-
+-  async function fetchContentPipeline() {
+-    const { data: ct } = await supabase
+-      .from("content_transmissions")
+-      .select("*")
+-      .order("created_at", { ascending: false })
+-      .limit(5);
+-    if (ct) setContentTransmissions(ct);
+-
+-    const { data: vr } = await supabase
+-      .from("vid_rush_queue")
+-      .select("*")
+-      .order("created_at", { ascending: false })
+-      .limit(5);
+-    if (vr) setVidRush(vr);
+-  }
+-
+-  async function fetchGlitches() {
+-    const { data } = await supabase
+-      .from("glitch_log")
+-      .select("*")
+-      .order("detected_at", { ascending: false })
+-      .limit(10);
+-    if (data) setGlitches(data);
+-  }
+-
+-  /* ── INITIAL FETCH + REALTIME ── */
+-
+-  useEffect(() => {
+-    fetchMetrics();
+-    fetchRevenue();
+-    fetchAgentHistory();
+-    fetchCommandQueue();
+-    fetchContentPipeline();
+-    fetchGlitches();
+-
+-    const ch = supabase
+-      .channel("ceo-dashboard-realtime")
+-      .on("postgres_changes", { event: "*", schema: "public", table: "mission_metrics" }, () => fetchMetrics())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "revenue_log" }, () => fetchRevenue())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "agent_history" }, () => fetchAgentHistory())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "command_queue" }, () => fetchCommandQueue())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "content_transmissions" }, () => fetchContentPipeline())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
+-      .on("postgres_changes", { event: "*", schema: "public", table: "glitch_log" }, () => fetchGlitches())
+-      .subscribe();
+-
+-    return () => { supabase.removeChannel(ch); };
+-  }, []);
+-
+-  /* ── DERIVED STATE ── */
+-
+-  const daysRemaining = daysUntil("2027-01-01");
+-  const revenuePercent = Math.min((totalRevenue / 1200000) * 100, 100);
+-  const liberationCount = metrics?.liberation_count ?? 0;
+-  const liberationPercent = Math.min((liberationCount / 100000) * 100, 100);
+-
+-  // Build agent cards from history
+-  const agentCards = useMemo(() => {
+-    return MAVEN_CREW.map((agent) => {
+-      const history = agentHistory.filter(
+-        (h) => h.agent_name?.toLowerCase() === agent.name.toLowerCase()
+-      );
+-      const lastEntry = history[0];
+-      const task = commandQueue.find(
+-        (q) => q.agent_name?.toLowerCase() === agent.name.toLowerCase()
+-      );
+-      return {
+-        ...agent,
+-        online: lastEntry ? isOnline(lastEntry.created_at) : false,
+-        lastAction: lastEntry?.content ?? "No activity recorded",
+-        lastSeen: lastEntry?.created_at,
+-        currentTask: task?.command ?? null,
+-      };
+-    });
+-  }, [agentHistory, commandQueue]);
+-
+-  /* ══════════════════ RENDER ══════════════════ */
+-
+-  return (
+-    <div className="fade-in ceo-dashboard">
+-      {/* ═══════ SECTION 1 — MISSION STATUS BAR ═══════ */}
+-      <header className="mission-status-bar">
+-        <div className="msb-header">
+-          <div>
+-            <h1 className="msb-title">SOVEREIGN SYNTHESIS — MISSION CONTROL</h1>
+-            <p className="msb-subtitle">ARCHITECT: ACE RICHIE // FREQUENCY: SOVEREIGN</p>
+-          </div>
+-          <div className="msb-countdown">
+-            <span className="countdown-number">{daysRemaining}</span>
+-            <span className="countdown-label">DAYS TO TARGET</span>
+-          </div>
+-        </div>
+-
+-        <div className="msb-tracks">
+-          <div className="msb-track">
+-            <div className="track-header">
+-              <span className="track-label">NET LIQUID SUM</span>
+-              <span className="track-value">${totalRevenue.toLocaleString()} <span className="track-target">/ $1,200,000</span></span>
+-            </div>
+-            <div className="progress-bar">
+-              <div className="progress-fill revenue-fill" style={{ width: `${revenuePercent}%` }} />
+-            </div>
+-            <span className="track-percent">{revenuePercent.toFixed(1)}%</span>
+-          </div>
+-
+-          <div className="msb-track">
+-            <div className="track-header">
+-              <span className="track-label">MINDS LIBERATED</span>
+-              <span className="track-value">{liberationCount.toLocaleString()} <span className="track-target">/ 100,000</span></span>
+-            </div>
+-            <div className="progress-bar">
+-              <div className="progress-fill liberation-fill" style={{ width: `${liberationPercent}%` }} />
+-            </div>
+-            <span className="track-percent">{liberationPercent.toFixed(1)}%</span>
+-          </div>
+-        </div>
+-      </header>
+-
+-      {/* ═══════ SECTION 2 — MAVEN CREW STATUS ═══════ */}
+-      <section className="dashboard-section">
+-        <h2 className="section-heading">MAVEN CREW STATUS</h2>
+-        <div className="crew-grid">
+-          {agentCards.map((agent) => (
+-            <div key={agent.name} className="card crew-card" style={{ "--agent-color": agent.color } as React.CSSProperties}>
+-              <div className="crew-card-header">
+-                <div className="crew-identity">
+-                  <Bot size={18} style={{ color: agent.color }} />
+-                  <span className="crew-name">{agent.name}</span>
+-                </div>
+-                <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
+-                  {agent.online ? <Wifi size={12} /> : <WifiOff size={12} />}
+-                  <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+-                </div>
+-              </div>
+-              <span className="crew-role">{agent.role}</span>
+-              <div className="crew-last-action">
+-                <span className="crew-action-label">LAST ACTION</span>
+-                <p className="crew-action-text">{agent.lastAction.length > 80 ? agent.lastAction.slice(0, 80) + "…" : agent.lastAction}</p>
+-                {agent.lastSeen && <span className="crew-time">{timeAgo(agent.lastSeen)}</span>}
+-              </div>
+-              {agent.currentTask && (
+-                <div className="crew-current-task">
+-                  <span className="crew-task-label">ACTIVE TASK</span>
+-                  <p className="crew-task-text">{agent.currentTask}</p>
+-                </div>
+-              )}
+-            </div>
+-          ))}
+-        </div>
+-      </section>
+-
+-      {/* ═══════ SECTION 3 — ACTIVE GOALS & TASKS ═══════ */}
+-      <section className="dashboard-section">
+-        <div className="section-header-row">
+-          <h2 className="section-heading">ACTIVE GOALS & TASKS</h2>
+-          <span className="section-badge">{commandQueue.length} ACTIVE</span>
+-        </div>
+-        <div className="card table-card">
+-          <div className="table-head">
+-            <span>AGENT</span>
+-            <span>TASK</span>
+-            <span>STATUS</span>
+-            <span>CREATED</span>
+-          </div>
+-          {commandQueue.length > 0 ? (
+-            commandQueue.map((task) => (
+-              <div key={task.id} className="table-row">
+-                <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
+-                <span className="cell-command">{task.command}</span>
+-                <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
+-                <span className="cell-time">{timeAgo(task.created_at)}</span>
+-              </div>
+-            ))
+-          ) : (
+-            <div className="table-empty">
+-              <Terminal size={24} />
+-              <span>NO PENDING TASKS IN QUEUE</span>
+-            </div>
+-          )}
+-        </div>
+-      </section>
+-
+-      {/* ═══════ TWO-COLUMN LAYOUT ═══════ */}
+-      <div className="two-col-layout">
+-        {/* ═══════ SECTION 4 — CONTENT PIPELINE ═══════ */}
+-        <section className="dashboard-section">
+-          <h2 className="section-heading">CONTENT PIPELINE</h2>
+-
+-          {/* Vid Rush Queue */}
+-          <div className="pipeline-sub">
+-            <div className="sub-header">
+-              <Play size={14} />
+-              <span>VID RUSH QUEUE</span>
+-              <span className="sub-count">{vidRush.length}</span>
+-            </div>
+-            {vidRush.length > 0 ? (
+-              vidRush.map((v) => (
+-                <div key={v.id} className="pipeline-item">
+-                  <span className="pi-topic">{v.topic}</span>
+-                  <span className={`pi-status ${v.status?.toLowerCase().replace(/\s/g, "-")}`}>{v.status}</span>
+-                  <span className="pi-time">{timeAgo(v.created_at)}</span>
+-                </div>
+-              ))
+-            ) : (
+-              <div className="pipeline-empty">No items in vid rush queue</div>
+-            )}
+-          </div>
+-
+-          {/* Content Transmissions */}
+-          <div className="pipeline-sub">
+-            <div className="sub-header">
+-              <FileText size={14} />
+-              <span>CONTENT TRANSMISSIONS</span>
+-              <span className="sub-count">{contentTransmissions.length}</span>
+-            </div>
+-            {contentTransmissions.length > 0 ? (
+-              contentTransmissions.map((ct) => (
+-                <div key={ct.id} className="pipeline-item">
+-                  <span className="pi-topic">{ct.intent_tag}</span>
+-                  <span className={`pi-status ${ct.status?.toLowerCase().replace(/\s/g, "-")}`}>{ct.status}</span>
+-                  <span className="pi-source">{ct.source}</span>
+-                  <span className="pi-time">{timeAgo(ct.created_at)}</span>
+-                </div>
+-              ))
+-            ) : (
+-              <div className="pipeline-empty">No content transmissions</div>
+-            )}
+-          </div>
+-        </section>
+-
+-        {/* ═══════ RIGHT COLUMN ═══════ */}
+-        <div className="right-stack">
+-          {/* ═══════ SECTION 5 — RECENT REVENUE ═══════ */}
+-          <section className="dashboard-section">
+-            <div className="section-header-row">
+-              <h2 className="section-heading">RECENT REVENUE</h2>
+-              <DollarSign size={16} className="section-icon" />
+-            </div>
+-            <div className="card revenue-list-card">
+-              {revenue.length > 0 ? (
+-                <>
+-                  {revenue.map((r) => (
+-                    <div key={r.id} className="revenue-row">
+-                      <div className="rev-left">
+-                        <span className="rev-amount">${Number(r.amount).toLocaleString()}</span>
+-                        <span className="rev-product">{r.product_id || "—"}</span>
+-                      </div>
+-                      <div className="rev-right">
+-                        <span className="rev-source">{r.source || "Direct"}</span>
+-                        <span className="rev-time">{r.timestamp ? timeAgo(r.timestamp) : "—"}</span>
+-                      </div>
+-                    </div>
+-                  ))}
+-                  <div className="revenue-total">
+-                    <span>RUNNING TOTAL</span>
+-                    <span className="total-amount">${totalRevenue.toLocaleString()}</span>
+-                  </div>
+-                </>
+-              ) : (
+-                <div className="table-empty">
+-                  <DollarSign size={24} />
+-                  <span>NO REVENUE ENTRIES YET</span>
+-                </div>
+-              )}
+-            </div>
+-          </section>
+-
+-          {/* ═══════ SECTION 6 — GLITCH LOG ═══════ */}
+-          <section className="dashboard-section">
+-            <div className="section-header-row">
+-              <h2 className="section-heading">GLITCH LOG</h2>
+-              <AlertTriangle size={16} className="section-icon" />
+-            </div>
+-            <div className="card glitch-list-card">
+-              {glitches.length > 0 ? (
+-                glitches.map((g) => (
+-                  <div key={g.id} className="glitch-row">
+-                    <div className={`glitch-severity-dot ${g.severity?.toLowerCase()}`} />
+-                    <div className="glitch-body">
+-                      <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "…" : g.description}</span>
+-                      <div className="glitch-meta">
+-                        <span className={`glitch-sev-label ${g.severity?.toLowerCase()}`}>{g.severity}</span>
+-                        <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "—"}</span>
+-                      </div>
+-                    </div>
+-                  </div>
+-                ))
+-              ) : (
+-                <div className="table-empty">
+-                  <Activity size={24} />
+-                  <span>NO ANOMALIES — FREQUENCY STABLE</span>
+-                </div>
+-              )}
+-            </div>
+-          </section>
+-        </div>
+-      </div>
+-
+-      {/* ═══════ STYLES ═══════ */}
+-      <style jsx>{`
+-        .ceo-dashboard {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 40px;
+-        }
+-
+-        /* ── SECTION 1: MISSION STATUS BAR ── */
+-        .mission-status-bar {
+-          background: linear-gradient(135deg, rgba(239, 159, 39, 0.04), rgba(29, 158, 117, 0.04));
+-          border: 1px solid rgba(239, 159, 39, 0.15);
+-          border-radius: 16px;
+-          padding: 32px;
+-        }
+-
+-        .msb-header {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: flex-start;
+-          margin-bottom: 32px;
+-        }
+-
+-        .msb-title {
+-          font-size: 28px;
+-          font-weight: 900;
+-          letter-spacing: -0.01em;
+-          color: #C9A84C;
+-        }
+-
+-        .msb-subtitle {
+-          font-family: var(--font-mono);
+-          font-size: 11px;
+-          letter-spacing: 0.2em;
+-          color: var(--color-text-muted);
+-          margin-top: 6px;
+-        }
+-
+-        .msb-countdown {
+-          display: flex;
+-          flex-direction: column;
+-          align-items: flex-end;
+-        }
+-
+-        .countdown-number {
+-          font-size: 48px;
+-          font-weight: 900;
+-          font-family: var(--font-mono);
+-          line-height: 1;
+-          color: #C9A84C;
+-        }
+-
+-        .countdown-label {
+-          font-size: 9px;
+-          font-weight: 800;
+-          letter-spacing: 0.15em;
+-          color: var(--color-text-muted);
+-          margin-top: 4px;
+-        }
+-
+-        .msb-tracks {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 20px;
+-        }
+-
+-        .msb-track {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 8px;
+-        }
+-
+-        .track-header {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: baseline;
+-        }
+-
+-        .track-label {
+-          font-size: 10px;
+-          font-weight: 800;
+-          letter-spacing: 0.12em;
+-          color: var(--color-text-muted);
+-        }
+-
+-        .track-value {
+-          font-size: 18px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-        }
+-
+-        .track-target {
+-          font-size: 12px;
+-          color: var(--color-text-muted);
+-          font-weight: 600;
+-        }
+-
+-        .progress-bar {
+-          height: 8px;
+-          background: rgba(255, 255, 255, 0.06);
+-          border-radius: 4px;
+-          overflow: hidden;
+-        }
+-
+-        .progress-fill {
+-          height: 100%;
+-          border-radius: 4px;
+-          transition: width 1s ease;
+-        }
+-
+-        .revenue-fill {
+-          background: linear-gradient(90deg, #C9A84C, #E8C56A);
+-          box-shadow: 0 0 12px rgba(239, 159, 39, 0.4);
+-        }
+-
+-        .liberation-fill {
+-          background: linear-gradient(90deg, #1D9E75, #3EF7E8);
+-          box-shadow: 0 0 12px rgba(29, 158, 117, 0.4);
+-        }
+-
+-        .track-percent {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-          font-weight: 700;
+-          align-self: flex-end;
+-        }
+-
+-        /* ── SECTION SHARED ── */
+-        .dashboard-section {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 16px;
+-        }
+-
+-        .section-heading {
+-          font-size: 16px;
+-          font-weight: 800;
+-          letter-spacing: 0.08em;
+-          color: var(--color-text-primary);
+-        }
+-
+-        .section-header-row {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: center;
+-        }
+-
+-        .section-badge {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          font-weight: 700;
+-          background: rgba(239, 159, 39, 0.1);
+-          color: #C9A84C;
+-          padding: 4px 12px;
+-          border-radius: 20px;
+-          border: 1px solid rgba(239, 159, 39, 0.2);
+-        }
+-
+-        .section-icon {
+-          color: var(--color-text-muted);
+-        }
+-
+-        /* ── SECTION 2: CREW GRID ── */
+-        .crew-grid {
+-          display: grid;
+-          grid-template-columns: repeat(3, 1fr);
+-          gap: 16px;
+-        }
+-
+-        .crew-card {
+-          padding: 20px !important;
+-          display: flex;
+-          flex-direction: column;
+-          gap: 10px;
+-          border-left: 3px solid var(--agent-color);
+-        }
+-
+-        .crew-card:hover {
+-          transform: translateY(-1px);
+-        }
+-
+-        .crew-card-header {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: center;
+-        }
+-
+-        .crew-identity {
+-          display: flex;
+-          align-items: center;
+-          gap: 8px;
+-        }
+-
+-        .crew-name {
+-          font-size: 14px;
+-          font-weight: 800;
+-          letter-spacing: 0.05em;
+-        }
+-
+-        .status-indicator {
+-          display: flex;
+-          align-items: center;
+-          gap: 4px;
+-          font-size: 9px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.05em;
+-          padding: 2px 8px;
+-          border-radius: 10px;
+-        }
+-
+-        .status-indicator.online {
+-          color: #1D9E75;
+-          background: rgba(29, 158, 117, 0.1);
+-          border: 1px solid rgba(29, 158, 117, 0.2);
+-        }
+-
+-        .status-indicator.offline {
+-          color: var(--color-text-muted);
+-          background: rgba(255, 255, 255, 0.03);
+-          border: 1px solid rgba(255, 255, 255, 0.06);
+-        }
+-
+-        .crew-role {
+-          font-size: 10px;
+-          color: var(--color-text-muted);
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.05em;
+-        }
+-
+-        .crew-last-action {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 4px;
+-          padding-top: 8px;
+-          border-top: 1px solid var(--border-color);
+-        }
+-
+-        .crew-action-label, .crew-task-label {
+-          font-size: 8px;
+-          font-weight: 800;
+-          letter-spacing: 0.15em;
+-          color: var(--color-text-muted);
+-        }
+-
+-        .crew-action-text, .crew-task-text {
+-          font-size: 11px;
+-          color: var(--color-text-secondary);
+-          line-height: 1.4;
+-          font-family: var(--font-mono);
+-        }
+-
+-        .crew-time {
+-          font-size: 9px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .crew-current-task {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 4px;
+-          background: rgba(239, 159, 39, 0.04);
+-          border: 1px solid rgba(239, 159, 39, 0.1);
+-          padding: 8px 10px;
+-          border-radius: 8px;
+-        }
+-
+-        /* ── SECTION 3: TASKS TABLE ── */
+-        .table-card {
+-          padding: 0 !important;
+-          overflow: hidden;
+-        }
+-
+-        .table-head {
+-          display: grid;
+-          grid-template-columns: 1fr 3fr 1fr 1fr;
+-          padding: 12px 20px;
+-          font-size: 10px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-          letter-spacing: 0.1em;
+-          border-bottom: 1px solid var(--border-color);
+-          background: rgba(255, 255, 255, 0.02);
+-        }
+-
+-        .table-row {
+-          display: grid;
+-          grid-template-columns: 1fr 3fr 1fr 1fr;
+-          padding: 14px 20px;
+-          font-size: 12px;
+-          border-bottom: 1px solid var(--border-color);
+-          align-items: center;
+-          transition: background 0.15s ease;
+-        }
+-
+-        .table-row:hover {
+-          background: rgba(255, 255, 255, 0.02);
+-        }
+-
+-        .cell-agent {
+-          font-weight: 700;
+-          font-size: 11px;
+-          text-transform: uppercase;
+-          letter-spacing: 0.05em;
+-        }
+-
+-        .cell-command {
+-          color: var(--color-text-secondary);
+-          font-family: var(--font-mono);
+-          font-size: 11px;
+-        }
+-
+-        .cell-status {
+-          font-size: 10px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          text-transform: uppercase;
+-          letter-spacing: 0.05em;
+-        }
+-
+-        .cell-status.active, .cell-status.Active { color: #1D9E75; }
+-        .cell-status.pending, .cell-status.Pending { color: #C9A84C; }
+-
+-        .cell-time {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .table-empty {
+-          display: flex;
+-          align-items: center;
+-          justify-content: center;
+-          gap: 12px;
+-          padding: 40px;
+-          color: var(--color-text-muted);
+-          font-size: 11px;
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.05em;
+-        }
+-
+-        /* ── TWO COLUMN LAYOUT ── */
+-        .two-col-layout {
+-          display: grid;
+-          grid-template-columns: 1fr 1fr;
+-          gap: 32px;
+-        }
+-
+-        .right-stack {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 32px;
+-        }
+-
+-        /* ── SECTION 4: CONTENT PIPELINE ── */
+-        .pipeline-sub {
+-          background: var(--color-bg-surface);
+-          border: 1px solid var(--border-color);
+-          border-radius: 12px;
+-          overflow: hidden;
+-        }
+-
+-        .sub-header {
+-          display: flex;
+-          align-items: center;
+-          gap: 8px;
+-          padding: 12px 16px;
+-          font-size: 10px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.1em;
+-          color: var(--color-text-muted);
+-          background: rgba(255, 255, 255, 0.02);
+-          border-bottom: 1px solid var(--border-color);
+-        }
+-
+-        .sub-count {
+-          margin-left: auto;
+-          background: rgba(255, 255, 255, 0.06);
+-          padding: 2px 8px;
+-          border-radius: 8px;
+-          font-size: 9px;
+-        }
+-
+-        .pipeline-item {
+-          display: flex;
+-          align-items: center;
+-          gap: 12px;
+-          padding: 10px 16px;
+-          border-bottom: 1px solid var(--border-color);
+-          font-size: 11px;
+-        }
+-
+-        .pipeline-item:last-child {
+-          border-bottom: none;
+-        }
+-
+-        .pi-topic {
+-          flex: 1;
+-          font-weight: 600;
+-          font-size: 12px;
+-        }
+-
+-        .pi-status {
+-          font-size: 9px;
+-          font-family: var(--font-mono);
+-          font-weight: 800;
+-          padding: 2px 8px;
+-          border-radius: 4px;
+-          border: 1px solid var(--border-color);
+-          color: var(--color-text-muted);
+-          text-transform: uppercase;
+-          letter-spacing: 0.05em;
+-        }
+-
+-        .pi-status.siege_active, .pi-status.active { color: #1D9E75; border-color: rgba(29,158,117,0.3); background: rgba(29,158,117,0.08); }
+-        .pi-status.synthesized, .pi-status.complete { color: var(--color-accent-secondary); border-color: rgba(124,92,252,0.3); background: rgba(124,92,252,0.08); }
+-        .pi-status.pending, .pi-status.draft { color: #C9A84C; border-color: rgba(201,168,76,0.3); background: rgba(201,168,76,0.08); }
+-
+-        .pi-source {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .pi-time {
+-          font-size: 9px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .pipeline-empty {
+-          padding: 24px 16px;
+-          font-size: 11px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-          text-align: center;
+-        }
+-
+-        /* ── SECTION 5: REVENUE LIST ── */
+-        .revenue-list-card {
+-          padding: 0 !important;
+-          overflow: hidden;
+-        }
+-
+-        .revenue-row {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: center;
+-          padding: 12px 20px;
+-          border-bottom: 1px solid var(--border-color);
+-          transition: background 0.15s ease;
+-        }
+-
+-        .revenue-row:hover {
+-          background: rgba(255, 255, 255, 0.02);
+-        }
+-
+-        .rev-left {
+-          display: flex;
+-          flex-direction: column;
+-          gap: 2px;
+-        }
+-
+-        .rev-amount {
+-          font-size: 14px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          color: #C9A84C;
+-        }
+-
+-        .rev-product {
+-          font-size: 10px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .rev-right {
+-          display: flex;
+-          flex-direction: column;
+-          align-items: flex-end;
+-          gap: 2px;
+-        }
+-
+-        .rev-source {
+-          font-size: 10px;
+-          font-weight: 700;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-secondary);
+-        }
+-
+-        .rev-time {
+-          font-size: 9px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        .revenue-total {
+-          display: flex;
+-          justify-content: space-between;
+-          align-items: center;
+-          padding: 14px 20px;
+-          background: rgba(239, 159, 39, 0.05);
+-          font-size: 11px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.08em;
+-          color: var(--color-text-muted);
+-        }
+-
+-        .total-amount {
+-          color: #C9A84C;
+-          font-size: 16px;
+-        }
+-
+-        /* ── SECTION 6: GLITCH LOG ── */
+-        .glitch-list-card {
+-          padding: 0 !important;
+-          overflow: hidden;
+-        }
+-
+-        .glitch-row {
+-          display: flex;
+-          gap: 12px;
+-          padding: 12px 20px;
+-          border-bottom: 1px solid var(--border-color);
+-          align-items: flex-start;
+-        }
+-
+-        .glitch-severity-dot {
+-          width: 6px;
+-          height: 6px;
+-          border-radius: 50%;
+-          margin-top: 5px;
+-          flex-shrink: 0;
+-        }
+-
+-        .glitch-severity-dot.critical { background: var(--color-accent-danger); box-shadow: 0 0 8px var(--color-accent-danger); }
+-        .glitch-severity-dot.warning { background: #C9A84C; box-shadow: 0 0 8px rgba(201,168,76,0.5); }
+-        .glitch-severity-dot.info { background: var(--color-accent-cyan); }
+-
+-        .glitch-body {
+-          flex: 1;
+-          display: flex;
+-          flex-direction: column;
+-          gap: 4px;
+-        }
+-
+-        .glitch-msg {
+-          font-size: 11px;
+-          color: var(--color-text-secondary);
+-          line-height: 1.4;
+-        }
+-
+-        .glitch-meta {
+-          display: flex;
+-          gap: 12px;
+-          align-items: center;
+-        }
+-
+-        .glitch-sev-label {
+-          font-size: 9px;
+-          font-weight: 800;
+-          font-family: var(--font-mono);
+-          letter-spacing: 0.05em;
+-          text-transform: uppercase;
+-        }
+-
+-        .glitch-sev-label.critical { color: var(--color-accent-danger); }
+-        .glitch-sev-label.warning { color: #C9A84C; }
+-        .glitch-sev-label.info { color: var(--color-accent-cyan); }
+-
+-        .glitch-time {
+-          font-size: 9px;
+-          font-family: var(--font-mono);
+-          color: var(--color-text-muted);
+-        }
+-
+-        /* ── RESPONSIVE ── */
+-        @media (max-width: 1200px) {
+-          .crew-grid { grid-template-columns: repeat(2, 1fr); }
+-          .two-col-layout { grid-template-columns: 1fr; }
+-        }
+-
+-        @media (max-width: 768px) {
+-          .crew-grid { grid-template-columns: 1fr; }
+-          .msb-header { flex-direction: column; gap: 16px; }
+-          .msb-title { font-size: 20px; }
+-          .countdown-number { font-size: 32px; }
+-        }
+-      `}</style>
+-    </div>
+-  );
+-}
++"use client";
++
++import { useEffect, useState, useMemo, useRef, useCallback } from "react";
++import { supabase } from "@/lib/supabase";
++import {
++  Activity,
++  Terminal,
++  TrendingUp,
++  Users,
++  Clock,
++  Wifi,
++  WifiOff,
++  Bot,
++  AlertTriangle,
++  DollarSign,
++  Play,
++  FileText,
++  Layers,
++  Target,
++} from "lucide-react";
++
++/* ──────────────────── TYPES ──────────────────── */
++
++type MissionMetrics = {
++  liberation_count: number;
++  total_leads: number;
++  p77_conversions: number;
++  manifesto_conversions: number;
++  inner_circle_conversions: number;
++};
++
++type RevenueEntry = {
++  id: string;
++  amount: number;
++  source: string;
++  product_id: string;
++  timestamp: string;
++};
++
++type AgentHistoryEntry = {
++  id: string;
++  agent_name: string;
++  role: string;
++  content: string;
++  created_at: string;
++};
++
++type CommandQueueEntry = {
++  id: string;
++  command: string;
++  status: string;
++  agent_name: string;
++  created_at: string;
++};
++
++type ContentTransmission = {
++  id: string;
++  intent_tag: string;
++  source: string;
++  status: string;
++  created_at: string;
++};
++
++type VidRushEntry = {
++  id: string;
++  topic: string;
++  status: string;
++  created_at: string;
++};
++
++type GlitchEntry = {
++  id: string;
++  severity: string;
++  description: string;
++  detected_at: string;
++};
++
++/* ──────────────── AGENT CONFIG ──────────────── */
++
++const MAVEN_CREW = [
++  { name: "Veritas", role: "Truth Engine & Research", color: "#43e97b" },
++  { name: "Sapphire", role: "Core API & Orchestration", color: "#4facfe" },
++  { name: "Alfred", role: "Operations & Automation", color: "#ff9a9e" },
++  { name: "Yuki", role: "Creative & Content", color: "#fddb92" },
++  { name: "Anita", role: "Outreach & Nurture", color: "#ebedee" },
++  { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a" },
++];
++
++/* ──────────────── HELPERS ──────────────── */
++
++function daysUntil(target: string): number {
++  return Math.max(
++    0,
++    Math.ceil(
++      (new Date(target).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
++    )
++  );
++}
++
++function timeAgo(dateStr: string): string {
++  const seconds = Math.floor(
++    (Date.now() - new Date(dateStr).getTime()) / 1000
++  );
++  if (seconds < 60) return `${seconds}s ago`;
++  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
++  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
++  return `${Math.floor(seconds / 86400)}d ago`;
++}
++
++function isOnline(lastSeen: string): boolean {
++  return Date.now() - new Date(lastSeen).getTime() < 24 * 60 * 60 * 1000;
++}
++
++/* ──────────────── ORB CANVAS ──────────────── */
++
++const ORB_COLORS = [
++  { r: 201, g: 168, b: 76 },   // gold
++  { r: 124, g: 92, b: 252 },   // violet
++  { r: 62, g: 247, b: 232 },   // cyan
++  { r: 201, g: 128, b: 76 },   // amber
++];
++
++type Orb = {
++  x: number; y: number; r: number;
++  vx: number; vy: number;
++  color: typeof ORB_COLORS[number];
++  alpha: number; pulse: number; pulseSpeed: number;
++};
++
++function createOrbs(count: number, w: number, h: number): Orb[] {
++  return Array.from({ length: count }, () => {
++    const color = ORB_COLORS[Math.floor(Math.random() * ORB_COLORS.length)];
++    return {
++      x: Math.random() * w,
++      y: Math.random() * h,
++      r: 1 + Math.random() * 2.5,
++      vx: (Math.random() - 0.5) * 0.3,
++      vy: (Math.random() - 0.5) * 0.3,
++      color,
++      alpha: 0.15 + Math.random() * 0.35,
++      pulse: Math.random() * Math.PI * 2,
++      pulseSpeed: 0.005 + Math.random() * 0.015,
++    };
++  });
++}
++
++function useOrbCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>, count = 350) {
++  const orbsRef = useRef<Orb[]>([]);
++  const rafRef = useRef<number>(0);
++
++  const draw = useCallback(() => {
++    const cvs = canvasRef.current;
++    if (!cvs) return;
++    const ctx = cvs.getContext("2d");
++    if (!ctx) return;
++    const w = cvs.width;
++    const h = cvs.height;
++
++    ctx.clearRect(0, 0, w, h);
++
++    for (const orb of orbsRef.current) {
++      orb.x += orb.vx;
++      orb.y += orb.vy;
++      orb.pulse += orb.pulseSpeed;
++
++      if (orb.x < -10) orb.x = w + 10;
++      if (orb.x > w + 10) orb.x = -10;
++      if (orb.y < -10) orb.y = h + 10;
++      if (orb.y > h + 10) orb.y = -10;
++
++      const glow = orb.alpha * (0.7 + 0.3 * Math.sin(orb.pulse));
++      const { r: cr, g: cg, b: cb } = orb.color;
++
++      ctx.beginPath();
++      const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.r * 3);
++      grad.addColorStop(0, `rgba(${cr},${cg},${cb},${glow})`);
++      grad.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
++      ctx.fillStyle = grad;
++      ctx.arc(orb.x, orb.y, orb.r * 3, 0, Math.PI * 2);
++      ctx.fill();
++    }
++
++    rafRef.current = requestAnimationFrame(draw);
++  }, [canvasRef]);
++
++  useEffect(() => {
++    const cvs = canvasRef.current;
++    if (!cvs) return;
++
++    const resize = () => {
++      cvs.width = window.innerWidth;
++      cvs.height = window.innerHeight;
++      orbsRef.current = createOrbs(count, cvs.width, cvs.height);
++    };
++
++    resize();
++    window.addEventListener("resize", resize);
++    rafRef.current = requestAnimationFrame(draw);
++
++    return () => {
++      window.removeEventListener("resize", resize);
++      cancelAnimationFrame(rafRef.current);
++    };
++  }, [canvasRef, count, draw]);
++}
++
++/* ══════════════════════════════════════════════════
++   CEO MISSION CONTROL — SINGLE PANE OF GLASS
++   ══════════════════════════════════════════════════ */
++
++export default function MissionControl() {
++  const canvasRef = useRef<HTMLCanvasElement>(null);
++  useOrbCanvas(canvasRef, 350);
++  const [metrics, setMetrics] = useState<MissionMetrics | null>(null);
++  const [revenue, setRevenue] = useState<RevenueEntry[]>([]);
++  const [totalRevenue, setTotalRevenue] = useState(0);
++  const [agentHistory, setAgentHistory] = useState<AgentHistoryEntry[]>([]);
++  const [commandQueue, setCommandQueue] = useState<CommandQueueEntry[]>([]);
++  const [contentTransmissions, setContentTransmissions] = useState<ContentTransmission[]>([]);
++  const [vidRush, setVidRush] = useState<VidRushEntry[]>([]);
++  const [glitches, setGlitches] = useState<GlitchEntry[]>([]);
++
++  /* ── FETCH FUNCTIONS ── */
++
++  async function fetchMetrics() {
++    const { data } = await supabase
++      .from("mission_metrics")
++      .select("*")
++      .limit(1)
++      .single();
++    if (data) setMetrics(data);
++  }
++
++  async function fetchRevenue() {
++    const { data } = await supabase
++      .from("revenue_log")
++      .select("*")
++      .order("timestamp", { ascending: false })
++      .limit(10);
++    if (data) {
++      setRevenue(data);
++    }
++    // Also get total
++    const { data: allRev } = await supabase
++      .from("revenue_log")
++      .select("amount");
++    if (allRev) {
++      setTotalRevenue(allRev.reduce((s, r) => s + Number(r.amount), 0));
++    }
++  }
++
++  async function fetchAgentHistory() {
++    const { data } = await supabase
++      .from("agent_history")
++      .select("*")
++      .order("created_at", { ascending: false })
++      .limit(50);
++    if (data) setAgentHistory(data);
++  }
++
++  async function fetchCommandQueue() {
++    const { data } = await supabase
++      .from("command_queue")
++      .select("*")
++      .in("status", ["pending", "active", "Pending", "Active"])
++      .order("created_at", { ascending: false });
++    if (data) setCommandQueue(data);
++  }
++
++  async function fetchContentPipeline() {
++    const { data: ct } = await supabase
++      .from("content_transmissions")
++      .select("*")
++      .order("created_at", { ascending: false })
++      .limit(5);
++    if (ct) setContentTransmissions(ct);
++
++    const { data: vr } = await supabase
++      .from("vid_rush_queue")
++      .select("*")
++      .order("created_at", { ascending: false })
++      .limit(5);
++    if (vr) setVidRush(vr);
++  }
++
++  async function fetchGlitches() {
++    const { data } = await supabase
++      .from("glitch_log")
++      .select("*")
++      .order("detected_at", { ascending: false })
++      .limit(10);
++    if (data) setGlitches(data);
++  }
++
++  /* ── INITIAL FETCH + REALTIME ── */
++
++  useEffect(() => {
++    fetchMetrics();
++    fetchRevenue();
++    fetchAgentHistory();
++    fetchCommandQueue();
++    fetchContentPipeline();
++    fetchGlitches();
++
++    const ch = supabase
++      .channel("ceo-dashboard-realtime")
++      .on("postgres_changes", { event: "*", schema: "public", table: "mission_metrics" }, () => fetchMetrics())
++      .on("postgres_changes", { event: "*", schema: "public", table: "revenue_log" }, () => fetchRevenue())
++      .on("postgres_changes", { event: "*", schema: "public", table: "agent_history" }, () => fetchAgentHistory())
++      .on("postgres_changes", { event: "*", schema: "public", table: "command_queue" }, () => fetchCommandQueue())
++      .on("postgres_changes", { event: "*", schema: "public", table: "content_transmissions" }, () => fetchContentPipeline())
++      .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
++      .on("postgres_changes", { event: "*", schema: "public", table: "glitch_log" }, () => fetchGlitches())
++      .subscribe();
++
++    return () => { supabase.removeChannel(ch); };
++  }, []);
++
++  /* ── DERIVED STATE ── */
++
++  const daysRemaining = daysUntil("2027-01-01");
++  const revenuePercent = Math.min((totalRevenue / 1200000) * 100, 100);
++  const liberationCount = metrics?.liberation_count ?? 0;
++  const liberationPercent = Math.min((liberationCount / 100000) * 100, 100);
++
++  // Build agent cards from history
++  const agentCards = useMemo(() => {
++    return MAVEN_CREW.map((agent) => {
++      const history = agentHistory.filter(
++        (h) => h.agent_name?.toLowerCase() === agent.name.toLowerCase()
++      );
++      const lastEntry = history[0];
++      const task = commandQueue.find(
++        (q) => q.agent_name?.toLowerCase() === agent.name.toLowerCase()
++      );
++      return {
++        ...agent,
++        online: lastEntry ? isOnline(lastEntry.created_at) : false,
++        lastAction: lastEntry?.content ?? "No activity recorded",
++        lastSeen: lastEntry?.created_at,
++        currentTask: task?.command ?? null,
++      };
++    });
++  }, [agentHistory, commandQueue]);
++
++  /* ══════════════════ RENDER ══════════════════ */
++
++  return (
++    <div className="fade-in ceo-dashboard" style={{ position: "relative" }}>
++      <canvas
++        ref={canvasRef}
++        style={{
++          position: "fixed",
++          top: 0,
++          left: 0,
++          width: "100vw",
++          height: "100vh",
++          pointerEvents: "none",
++          zIndex: 0,
++        }}
++      />
++      {/* ═══════ SECTION 1 — MISSION STATUS BAR ═══════ */}
++      <header className="mission-status-bar">
++        <div className="msb-header">
++          <div>
++            <h1 className="msb-title">SOVEREIGN SYNTHESIS — MISSION CONTROL</h1>
++            <p className="msb-subtitle">ARCHITECT: ACE RICHIE // FREQUENCY: SOVEREIGN</p>
++          </div>
++          <div className="msb-countdown">
++            <span className="countdown-number">{daysRemaining}</span>
++            <span className="countdown-label">DAYS TO TARGET</span>
++          </div>
++        </div>
++
++        <div className="msb-tracks">
++          <div className="msb-track">
++            <div className="track-header">
++              <span className="track-label">NET LIQUID SUM</span>
++              <span className="track-value">${totalRevenue.toLocaleString()} <span className="track-target">/ $1,200,000</span></span>
++            </div>
++            <div className="progress-bar">
++              <div className="progress-fill revenue-fill" style={{ width: `${revenuePercent}%` }} />
++            </div>
++            <span className="track-percent">{revenuePercent.toFixed(1)}%</span>
++          </div>
++
++          <div className="msb-track">
++            <div className="track-header">
++              <span className="track-label">MINDS LIBERATED</span>
++              <span className="track-value">{liberationCount.toLocaleString()} <span className="track-target">/ 100,000</span></span>
++            </div>
++            <div className="progress-bar">
++              <div className="progress-fill liberation-fill" style={{ width: `${liberationPercent}%` }} />
++            </div>
++            <span className="track-percent">{liberationPercent.toFixed(1)}%</span>
++          </div>
++        </div>
++      </header>
++
++      {/* ═══════ SECTION 2 — MAVEN CREW STATUS ═══════ */}
++      <section className="dashboard-section">
++        <h2 className="section-heading">MAVEN CREW STATUS</h2>
++        <div className="crew-grid">
++          {agentCards.map((agent) => (
++            <div key={agent.name} className="card crew-card" style={{ "--agent-color": agent.color } as React.CSSProperties}>
++              <div className="crew-card-header">
++                <div className="crew-identity">
++                  <Bot size={18} style={{ color: agent.color }} />
++                  <span className="crew-name">{agent.name}</span>
++                </div>
++                <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
++                  {agent.online ? <Wifi size={12} /> : <WifiOff size={12} />}
++                  <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
++                </div>
++              </div>
++              <span className="crew-role">{agent.role}</span>
++              <div className="crew-last-action">
++                <span className="crew-action-label">LAST ACTION</span>
++                <p className="crew-action-text">{agent.lastAction.length > 80 ? agent.lastAction.slice(0, 80) + "…" : agent.lastAction}</p>
++                {agent.lastSeen && <span className="crew-time">{timeAgo(agent.lastSeen)}</span>}
++              </div>
++              {agent.currentTask && (
++                <div className="crew-current-task">
++                  <span className="crew-task-label">ACTIVE TASK</span>
++                  <p className="crew-task-text">{agent.currentTask}</p>
++                </div>
++              )}
++            </div>
++          ))}
++        </div>
++      </section>
++
++      {/* ═══════ SECTION 3 — ACTIVE GOALS & TASKS ═══════ */}
++      <section className="dashboard-section">
++        <div className="section-header-row">
++          <h2 className="section-heading">ACTIVE GOALS & TASKS</h2>
++          <span className="section-badge">{commandQueue.length} ACTIVE</span>
++        </div>
++        <div className="card table-card">
++          <div className="table-head">
++            <span>AGENT</span>
++            <span>TASK</span>
++            <span>STATUS</span>
++            <span>CREATED</span>
++          </div>
++          {commandQueue.length > 0 ? (
++            commandQueue.map((task) => (
++              <div key={task.id} className="table-row">
++                <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
++                <span className="cell-command">{task.command}</span>
++                <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
++                <span className="cell-time">{timeAgo(task.created_at)}</span>
++              </div>
++            ))
++          ) : (
++            <div className="table-empty">
++              <Terminal size={24} />
++              <span>NO PENDING TASKS IN QUEUE</span>
++            </div>
++          )}
++        </div>
++      </section>
++
++      {/* ═══════ TWO-COLUMN LAYOUT ═══════ */}
++      <div className="two-col-layout">
++        {/* ═══════ SECTION 4 — CONTENT PIPELINE ═══════ */}
++        <section className="dashboard-section">
++          <h2 className="section-heading">CONTENT PIPELINE</h2>
++
++          {/* Vid Rush Queue */}
++          <div className="pipeline-sub">
++            <div className="sub-header">
++              <Play size={14} />
++              <span>VID RUSH QUEUE</span>
++              <span className="sub-count">{vidRush.length}</span>
++            </div>
++            {vidRush.length > 0 ? (
++              vidRush.map((v) => (
++                <div key={v.id} className="pipeline-item">
++                  <span className="pi-topic">{v.topic}</span>
++                  <span className={`pi-status ${v.status?.toLowerCase().replace(/\s/g, "-")}`}>{v.status}</span>
++                  <span className="pi-time">{timeAgo(v.created_at)}</span>
++                </div>
++              ))
++            ) : (
++              <div className="pipeline-empty">No items in vid rush queue</div>
++            )}
++          </div>
++
++          {/* Content Transmissions */}
++          <div className="pipeline-sub">
++            <div className="sub-header">
++              <FileText size={14} />
++              <span>CONTENT TRANSMISSIONS</span>
++              <span className="sub-count">{contentTransmissions.length}</span>
++            </div>
++            {contentTransmissions.length > 0 ? (
++              contentTransmissions.map((ct) => (
++                <div key={ct.id} className="pipeline-item">
++                  <span className="pi-topic">{ct.intent_tag}</span>
++                  <span className={`pi-status ${ct.status?.toLowerCase().replace(/\s/g, "-")}`}>{ct.status}</span>
++                  <span className="pi-source">{ct.source}</span>
++                  <span className="pi-time">{timeAgo(ct.created_at)}</span>
++                </div>
++              ))
++            ) : (
++              <div className="pipeline-empty">No content transmissions</div>
++            )}
++          </div>
++        </section>
++
++        {/* ═══════ RIGHT COLUMN ═══════ */}
++        <div className="right-stack">
++          {/* ═══════ SECTION 5 — RECENT REVENUE ═══════ */}
++          <section className="dashboard-section">
++            <div className="section-header-row">
++              <h2 className="section-heading">RECENT REVENUE</h2>
++              <DollarSign size={16} className="section-icon" />
++            </div>
++            <div className="card revenue-list-card">
++              {revenue.length > 0 ? (
++                <>
++                  {revenue.map((r) => (
++                    <div key={r.id} className="revenue-row">
++                      <div className="rev-left">
++                        <span className="rev-amount">${Number(r.amount).toLocaleString()}</span>
++                        <span className="rev-product">{r.product_id || "—"}</span>
++                      </div>
++                      <div className="rev-right">
++                        <span className="rev-source">{r.source || "Direct"}</span>
++                        <span className="rev-time">{r.timestamp ? timeAgo(r.timestamp) : "—"}</span>
++                      </div>
++                    </div>
++                  ))}
++                  <div className="revenue-total">
++                    <span>RUNNING TOTAL</span>
++                    <span className="total-amount">${totalRevenue.toLocaleString()}</span>
++                  </div>
++                </>
++              ) : (
++                <div className="table-empty">
++                  <DollarSign size={24} />
++                  <span>NO REVENUE ENTRIES YET</span>
++                </div>
++              )}
++            </div>
++          </section>
++
++          {/* ═══════ SECTION 6 — GLITCH LOG ═══════ */}
++          <section className="dashboard-section">
++            <div className="section-header-row">
++              <h2 className="section-heading">GLITCH LOG</h2>
++              <AlertTriangle size={16} className="section-icon" />
++            </div>
++            <div className="card glitch-list-card">
++              {glitches.length > 0 ? (
++                glitches.map((g) => (
++                  <div key={g.id} className="glitch-row">
++                    <div className={`glitch-severity-dot ${g.severity?.toLowerCase()}`} />
++                    <div className="glitch-body">
++                      <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "…" : g.description}</span>
++                      <div className="glitch-meta">
++                        <span className={`glitch-sev-label ${g.severity?.toLowerCase()}`}>{g.severity}</span>
++                        <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "—"}</span>
++                      </div>
++                    </div>
++                  </div>
++                ))
++              ) : (
++                <div className="table-empty">
++                  <Activity size={24} />
++                  <span>NO ANOMALIES — FREQUENCY STABLE</span>
++                </div>
++              )}
++            </div>
++          </section>
++        </div>
++      </div>
++
++      {/* ═══════ STYLES ═══════ */}
++      <style jsx>{`
++        .ceo-dashboard {
++          display: flex;
++          flex-direction: column;
++          gap: 40px;
++        }
++
++        /* ── SECTION 1: MISSION STATUS BAR ── */
++        .mission-status-bar {
++          background: linear-gradient(135deg, rgba(201, 168, 76, 0.04), rgba(29, 158, 117, 0.04));
++          border: 1px solid rgba(201, 168, 76, 0.15);
++          border-radius: 16px;
++          padding: 32px;
++        }
++
++        .msb-header {
++          display: flex;
++          justify-content: space-between;
++          align-items: flex-start;
++          margin-bottom: 32px;
++        }
++
++        .msb-title {
++          font-size: 28px;
++          font-weight: 900;
++          letter-spacing: -0.01em;
++          color: #C9A84C;
++        }
++
++        .msb-subtitle {
++          font-family: var(--font-mono);
++          font-size: 11px;
++          letter-spacing: 0.2em;
++          color: var(--color-text-muted);
++          margin-top: 6px;
++        }
++
++        .msb-countdown {
++          display: flex;
++          flex-direction: column;
++          align-items: flex-end;
++        }
++
++        .countdown-number {
++          font-size: 48px;
++          font-weight: 900;
++          font-family: var(--font-mono);
++          line-height: 1;
++          color: #C9A84C;
++        }
++
++        .countdown-label {
++          font-size: 9px;
++          font-weight: 800;
++          letter-spacing: 0.15em;
++          color: var(--color-text-muted);
++          margin-top: 4px;
++        }
++
++        .msb-tracks {
++          display: flex;
++          flex-direction: column;
++          gap: 20px;
++        }
++
++        .msb-track {
++          display: flex;
++          flex-direction: column;
++          gap: 8px;
++        }
++
++        .track-header {
++          display: flex;
++          justify-content: space-between;
++          align-items: baseline;
++        }
++
++        .track-label {
++          font-size: 10px;
++          font-weight: 800;
++          letter-spacing: 0.12em;
++          color: var(--color-text-muted);
++        }
++
++        .track-value {
++          font-size: 18px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++        }
++
++        .track-target {
++          font-size: 12px;
++          color: var(--color-text-muted);
++          font-weight: 600;
++        }
++
++        .progress-bar {
++          height: 8px;
++          background: rgba(255, 255, 255, 0.06);
++          border-radius: 4px;
++          overflow: hidden;
++        }
++
++        .progress-fill {
++          height: 100%;
++          border-radius: 4px;
++          transition: width 1s ease;
++        }
++
++        .revenue-fill {
++          background: linear-gradient(90deg, #C9A84C, #E8C56A);
++          box-shadow: 0 0 12px rgba(201, 168, 76, 0.4);
++        }
++
++        .liberation-fill {
++          background: linear-gradient(90deg, #1D9E75, #3EF7E8);
++          box-shadow: 0 0 12px rgba(29, 158, 117, 0.4);
++        }
++
++        .track-percent {
++          font-size: 10px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++          font-weight: 700;
++          align-self: flex-end;
++        }
++
++        /* ── SECTION SHARED ── */
++        .dashboard-section {
++          display: flex;
++          flex-direction: column;
++          gap: 16px;
++        }
++
++        .section-heading {
++          font-size: 16px;
++          font-weight: 800;
++          letter-spacing: 0.08em;
++          color: var(--color-text-primary);
++        }
++
++        .section-header-row {
++          display: flex;
++          justify-content: space-between;
++          align-items: center;
++        }
++
++        .section-badge {
++          font-size: 10px;
++          font-family: var(--font-mono);
++          font-weight: 700;
++          background: rgba(201, 168, 76, 0.1);
++          color: #C9A84C;
++          padding: 4px 12px;
++          border-radius: 20px;
++          border: 1px solid rgba(201, 168, 76, 0.2);
++        }
++
++        .section-icon {
++          color: var(--color-text-muted);
++        }
++
++        /* ── SECTION 2: CREW GRID ── */
++        .crew-grid {
++          display: grid;
++          grid-template-columns: repeat(3, 1fr);
++          gap: 16px;
++        }
++
++        .crew-card {
++          padding: 20px !important;
++          display: flex;
++          flex-direction: column;
++          gap: 10px;
++          border-left: 3px solid var(--agent-color);
++        }
++
++        .crew-card:hover {
++          transform: translateY(-1px);
++        }
++
++        .crew-card-header {
++          display: flex;
++          justify-content: space-between;
++          align-items: center;
++        }
++
++        .crew-identity {
++          display: flex;
++          align-items: center;
++          gap: 8px;
++        }
++
++        .crew-name {
++          font-size: 14px;
++          font-weight: 800;
++          letter-spacing: 0.05em;
++        }
++
++        .status-indicator {
++          display: flex;
++          align-items: center;
++          gap: 4px;
++          font-size: 9px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          letter-spacing: 0.05em;
++          padding: 2px 8px;
++          border-radius: 10px;
++        }
++
++        .status-indicator.online {
++          color: #1D9E75;
++          background: rgba(29, 158, 117, 0.1);
++          border: 1px solid rgba(29, 158, 117, 0.2);
++        }
++
++        .status-indicator.offline {
++          color: var(--color-text-muted);
++          background: rgba(255, 255, 255, 0.03);
++          border: 1px solid rgba(255, 255, 255, 0.06);
++        }
++
++        .crew-role {
++          font-size: 10px;
++          color: var(--color-text-muted);
++          font-family: var(--font-mono);
++          letter-spacing: 0.05em;
++        }
++
++        .crew-last-action {
++          display: flex;
++          flex-direction: column;
++          gap: 4px;
++          padding-top: 8px;
++          border-top: 1px solid var(--border-color);
++        }
++
++        .crew-action-label, .crew-task-label {
++          font-size: 8px;
++          font-weight: 800;
++          letter-spacing: 0.15em;
++          color: var(--color-text-muted);
++        }
++
++        .crew-action-text, .crew-task-text {
++          font-size: 11px;
++          color: var(--color-text-secondary);
++          line-height: 1.4;
++          font-family: var(--font-mono);
++        }
++
++        .crew-time {
++          font-size: 9px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .crew-current-task {
++          display: flex;
++          flex-direction: column;
++          gap: 4px;
++          background: rgba(201, 168, 76, 0.04);
++          border: 1px solid rgba(201, 168, 76, 0.1);
++          padding: 8px 10px;
++          border-radius: 8px;
++        }
++
++        /* ── SECTION 3: TASKS TABLE ── */
++        .table-card {
++          padding: 0 !important;
++          overflow: hidden;
++        }
++
++        .table-head {
++          display: grid;
++          grid-template-columns: 1fr 3fr 1fr 1fr;
++          padding: 12px 20px;
++          font-size: 10px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++          letter-spacing: 0.1em;
++          border-bottom: 1px solid var(--border-color);
++          background: rgba(255, 255, 255, 0.02);
++        }
++
++        .table-row {
++          display: grid;
++          grid-template-columns: 1fr 3fr 1fr 1fr;
++          padding: 14px 20px;
++          font-size: 12px;
++          border-bottom: 1px solid var(--border-color);
++          align-items: center;
++          transition: background 0.15s ease;
++        }
++
++        .table-row:hover {
++          background: rgba(255, 255, 255, 0.02);
++        }
++
++        .cell-agent {
++          font-weight: 700;
++          font-size: 11px;
++          text-transform: uppercase;
++          letter-spacing: 0.05em;
++        }
++
++        .cell-command {
++          color: var(--color-text-secondary);
++          font-family: var(--font-mono);
++          font-size: 11px;
++        }
++
++        .cell-status {
++          font-size: 10px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          text-transform: uppercase;
++          letter-spacing: 0.05em;
++        }
++
++        .cell-status.active, .cell-status.Active { color: #1D9E75; }
++        .cell-status.pending, .cell-status.Pending { color: #C9A84C; }
++
++        .cell-time {
++          font-size: 10px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .table-empty {
++          display: flex;
++          align-items: center;
++          justify-content: center;
++          gap: 12px;
++          padding: 40px;
++          color: var(--color-text-muted);
++          font-size: 11px;
++          font-family: var(--font-mono);
++          letter-spacing: 0.05em;
++        }
++
++        /* ── TWO COLUMN LAYOUT ── */
++        .two-col-layout {
++          display: grid;
++          grid-template-columns: 1fr 1fr;
++          gap: 32px;
++        }
++
++        .right-stack {
++          display: flex;
++          flex-direction: column;
++          gap: 32px;
++        }
++
++        /* ── SECTION 4: CONTENT PIPELINE ── */
++        .pipeline-sub {
++          background: var(--color-bg-surface);
++          border: 1px solid var(--border-color);
++          border-radius: 12px;
++          overflow: hidden;
++        }
++
++        .sub-header {
++          display: flex;
++          align-items: center;
++          gap: 8px;
++          padding: 12px 16px;
++          font-size: 10px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          letter-spacing: 0.1em;
++          color: var(--color-text-muted);
++          background: rgba(255, 255, 255, 0.02);
++          border-bottom: 1px solid var(--border-color);
++        }
++
++        .sub-count {
++          margin-left: auto;
++          background: rgba(255, 255, 255, 0.06);
++          padding: 2px 8px;
++          border-radius: 8px;
++          font-size: 9px;
++        }
++
++        .pipeline-item {
++          display: flex;
++          align-items: center;
++          gap: 12px;
++          padding: 10px 16px;
++          border-bottom: 1px solid var(--border-color);
++          font-size: 11px;
++        }
++
++        .pipeline-item:last-child {
++          border-bottom: none;
++        }
++
++        .pi-topic {
++          flex: 1;
++          font-weight: 600;
++          font-size: 12px;
++        }
++
++        .pi-status {
++          font-size: 9px;
++          font-family: var(--font-mono);
++          font-weight: 800;
++          padding: 2px 8px;
++          border-radius: 4px;
++          border: 1px solid var(--border-color);
++          color: var(--color-text-muted);
++          text-transform: uppercase;
++          letter-spacing: 0.05em;
++        }
++
++        .pi-status.siege_active, .pi-status.active { color: #1D9E75; border-color: rgba(29,158,117,0.3); background: rgba(29,158,117,0.08); }
++        .pi-status.synthesized, .pi-status.complete { color: var(--color-accent-secondary); border-color: rgba(124,92,252,0.3); background: rgba(124,92,252,0.08); }
++        .pi-status.pending, .pi-status.draft { color: #C9A84C; border-color: rgba(201,168,76,0.3); background: rgba(201,168,76,0.08); }
++
++        .pi-source {
++          font-size: 10px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .pi-time {
++          font-size: 9px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .pipeline-empty {
++          padding: 24px 16px;
++          font-size: 11px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++          text-align: center;
++        }
++
++        /* ── SECTION 5: REVENUE LIST ── */
++        .revenue-list-card {
++          padding: 0 !important;
++          overflow: hidden;
++        }
++
++        .revenue-row {
++          display: flex;
++          justify-content: space-between;
++          align-items: center;
++          padding: 12px 20px;
++          border-bottom: 1px solid var(--border-color);
++          transition: background 0.15s ease;
++        }
++
++        .revenue-row:hover {
++          background: rgba(255, 255, 255, 0.02);
++        }
++
++        .rev-left {
++          display: flex;
++          flex-direction: column;
++          gap: 2px;
++        }
++
++        .rev-amount {
++          font-size: 14px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          color: #C9A84C;
++        }
++
++        .rev-product {
++          font-size: 10px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .rev-right {
++          display: flex;
++          flex-direction: column;
++          align-items: flex-end;
++          gap: 2px;
++        }
++
++        .rev-source {
++          font-size: 10px;
++          font-weight: 700;
++          font-family: var(--font-mono);
++          color: var(--color-text-secondary);
++        }
++
++        .rev-time {
++          font-size: 9px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        .revenue-total {
++          display: flex;
++          justify-content: space-between;
++          align-items: center;
++          padding: 14px 20px;
++          background: rgba(201, 168, 76, 0.05);
++          font-size: 11px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          letter-spacing: 0.08em;
++          color: var(--color-text-muted);
++        }
++
++        .total-amount {
++          color: #C9A84C;
++          font-size: 16px;
++        }
++
++        /* ── SECTION 6: GLITCH LOG ── */
++        .glitch-list-card {
++          padding: 0 !important;
++          overflow: hidden;
++        }
++
++        .glitch-row {
++          display: flex;
++          gap: 12px;
++          padding: 12px 20px;
++          border-bottom: 1px solid var(--border-color);
++          align-items: flex-start;
++        }
++
++        .glitch-severity-dot {
++          width: 6px;
++          height: 6px;
++          border-radius: 50%;
++          margin-top: 5px;
++          flex-shrink: 0;
++        }
++
++        .glitch-severity-dot.critical { background: var(--color-accent-danger); box-shadow: 0 0 8px var(--color-accent-danger); }
++        .glitch-severity-dot.warning { background: #C9A84C; box-shadow: 0 0 8px rgba(201,168,76,0.5); }
++        .glitch-severity-dot.info { background: var(--color-accent-cyan); }
++
++        .glitch-body {
++          flex: 1;
++          display: flex;
++          flex-direction: column;
++          gap: 4px;
++        }
++
++        .glitch-msg {
++          font-size: 11px;
++          color: var(--color-text-secondary);
++          line-height: 1.4;
++        }
++
++        .glitch-meta {
++          display: flex;
++          gap: 12px;
++          align-items: center;
++        }
++
++        .glitch-sev-label {
++          font-size: 9px;
++          font-weight: 800;
++          font-family: var(--font-mono);
++          letter-spacing: 0.05em;
++          text-transform: uppercase;
++        }
++
++        .glitch-sev-label.critical { color: var(--color-accent-danger); }
++        .glitch-sev-label.warning { color: #C9A84C; }
++        .glitch-sev-label.info { color: var(--color-accent-cyan); }
++
++        .glitch-time {
++          font-size: 9px;
++          font-family: var(--font-mono);
++          color: var(--color-text-muted);
++        }
++
++        /* ── RESPONSIVE ── */
++        @media (max-width: 1200px) {
++          .crew-grid { grid-template-columns: repeat(2, 1fr); }
++          .two-col-layout { grid-template-columns: 1fr; }
++        }
++
++        @media (max-width: 768px) {
++          .crew-grid { grid-template-columns: 1fr; }
++          .msb-header { flex-direction: column; gap: 16px; }
++          .msb-title { font-size: 20px; }
++          .countdown-number { font-size: 32px; }
++        }
++      `}</style>
++    </div>
++  );
++}
++                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+\ No newline at end of file
+diff --git a/src/app/portals/page.tsx b/src/app/portals/page.tsx
+index 0fa715d..8ecd21e 100644
+--- a/src/app/portals/page.tsx
++++ b/src/app/portals/page.tsx
+@@ -43,9 +43,6 @@ export default function InitiatePortals() {
+     if (data) {
+       setLiberationCount(data.liberation_count || 0);
+       setInnerCircleCount(data.inner_circle_count || 0);
+-    } else {
+-      setLiberationCount(342);
+-      setInnerCircleCount(7);
+     }
+   }
+ 
+@@ -167,8 +164,4 @@ export default function InitiatePortals() {
+         .freq-dot { width: 6px; height: 6px; background: var(--color-accent-success); border-radius: 50%; box-shadow: 0 0 8px var(--color-accent-success); animation: pulse-green 2s infinite; }
+         .freq-wave { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+         .freq-bar { flex: 1; background: linear-gradient(180deg, var(--color-accent-cyan), transparent); border-radius: 2px 2px 0 0; opacity: 0.7; animation: wave 2s ease-in-out infinite; }
+-        @keyframes wave { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.6); } }
+-      `}</style>
+-    </div>
+-  );
+-}
++        @keyframes wave { 0%, 100% { transform: scaleY(1);
+\ No newline at end of file
+diff --git a/src/app/productivity/page.tsx b/src/app/productivity/page.tsx
+index 31e2366..06200a7 100644
+--- a/src/app/productivity/page.tsx
++++ b/src/app/productivity/page.tsx
+@@ -49,23 +49,17 @@ export default function Productivity() {
+ 
+   async function fetchHabits() {
+     const { data } = await supabase.from('habit_days').select('day_index').eq('completed', true);
+-    if (data && data.length > 0) {
++    if (data) {
+       const newHabits = new Array(90).fill(false);
+       data.forEach((d: any) => { if (d.day_index >= 0 && d.day_index < 90) newHabits[d.day_index] = true; });
+       setHabits(newHabits);
+-    } else {
+-      const saved = localStorage.getItem('gc-habits');
+-      if (saved) setHabits(JSON.parse(saved));
+     }
+   }
+ 
+   async function fetchTodos() {
+     const { data } = await supabase.from('todos').select('*').order('created_at', { ascending: true });
+-    if (data && data.length > 0) {
++    if (data) {
+       setTodos(data.map((t: any) => ({ id: t.id, text: t.text, done: t.done })));
+-    } else {
+-      const saved = localStorage.getItem('gc-todos');
+-      if (saved) setTodos(JSON.parse(saved));
+     }
+   }
+ 
+@@ -73,9 +67,6 @@ export default function Productivity() {
+     const { data } = await supabase.from('architect_notes').select('content').limit(1).single();
+     if (data) {
+       setNote(data.content);
+-    } else {
+-      const saved = localStorage.getItem('gc-note');
+-      if (saved) setNote(saved);
+     }
+   }
+ 
+@@ -83,7 +74,6 @@ export default function Productivity() {
+     const newHabits = [...habits];
+     newHabits[index] = !newHabits[index];
+     setHabits(newHabits);
+-    localStorage.setItem('gc-habits', JSON.stringify(newHabits));
+     if (newHabits[index]) {
+       await supabase.from('habit_days').upsert({ day_index: index, completed: true }, { onConflict: 'day_index' });
+     } else {
+@@ -97,14 +87,12 @@ export default function Productivity() {
+     const nextTodos = [...todos, newItem];
+     setTodos(nextTodos);
+     setNewTodo('');
+-    localStorage.setItem('gc-todos', JSON.stringify(nextTodos));
+     await supabase.from('todos').insert({ text: newTodo, done: false });
+   };
+ 
+   const toggleTodo = async (id: string) => {
+     const nextTodos = todos.map(t => t.id === id ? { ...t, done: !t.done } : t);
+     setTodos(nextTodos);
+-    localStorage.setItem('gc-todos', JSON.stringify(nextTodos));
+     const target = todos.find(t => t.id === id);
+     if (target) await supabase.from('todos').update({ done: !target.done }).eq('id', id);
+   };
+@@ -112,13 +100,11 @@ export default function Productivity() {
+   const deleteTodo = async (id: string) => {
+     const nextTodos = todos.filter(t => t.id !== id);
+     setTodos(nextTodos);
+-    localStorage.setItem('gc-todos', JSON.stringify(nextTodos));
+     await supabase.from('todos').delete().eq('id', id);
+   };
+ 
+   const saveNote = async (val: string) => {
+     setNote(val);
+-    localStorage.setItem('gc-note', val);
+   };
+ 
+   const persistNote = async () => {
+@@ -384,26 +370,4 @@ export default function Productivity() {
+           color: var(--color-text-muted);
+           cursor: pointer;
+           opacity: 0;
+-          transition: var(--transition-fast);
+-        }
+-
+-        .todo-item:hover .btn-delete {
+-          opacity: 1;
+-        }
+-
+-        .textarea {
+-          width: 100%;
+-          min-height: 200px;
+-          background: var(--color-bg-deepest);
+-          border: 1px solid var(--border-color);
+-          border-radius: 8px;
+-          padding: 12px;
+-          color: var(--color-text-primary);
+-          font-family: var(--font-mono);
+-          font-size: 13px;
+-          resize: vertical;
+-        }
+-      `}</style>
+-    </div>
+-  );
+-}
++          transition: var(--transition-fas
+\ No newline at end of file
+diff --git a/src/app/settings/page.tsx b/src/app/settings/page.tsx
+index 613c1bf..cfb5ade 100644
+--- a/src/app/settings/page.tsx
++++ b/src/app/settings/page.tsx
+@@ -33,24 +33,14 @@ export default function Settings() {
+   async function fetchData() {
+     setLoading(true);
+     const { data } = await supabase
+-      .from('personality_config')
++      .from('system_config')
+       .select('*')
+       .order('category', { ascending: true });
+     
+-    if (data && data.length > 0) {
++    if (data) {
+        setConfigs(data as ConfigEntry[]);
+        const prompt = data.find(c => c.key === 'system_prompt');
+        if (prompt) setSystemPrompt(prompt.value);
+-    } else {
+-      // Mock data for initial build momentum
+-      const mock: ConfigEntry[] = [
+-        { id: '1', category: 'Model', key: 'provider', value: 'Anthropic', description: 'Primary LLM Provider' },
+-        { id: '2', category: 'Model', key: 'model_name', value: 'Claude 3.5 Sonnet', description: 'Active logical engine' },
+-        { id: '3', category: 'Behavior', key: 'temperature', value: '0.7', description: 'Creative variance' },
+-        { id: '4', category: 'Security', key: 'faraday_shield_active', value: 'true', description: 'Interference protection' },
+-      ];
+-      setConfigs(mock);
+-      setSystemPrompt("You are Antigravity, the Sovereign Synthesis System Pilot. You execute the Architect's vision with clinical precision and zero friction...");
+     }
+     setLoading(false);
+   }
+@@ -59,7 +49,7 @@ export default function Settings() {
+     setIsSaving(true);
+     try {
+       const { error } = await supabase
+-        .from('personality_config')
++        .from('system_config')
+         .upsert(
+           { key: 'system_prompt', value: systemPrompt, category: 'Core' },
+           { onConflict: 'key' }
+@@ -78,7 +68,7 @@ export default function Settings() {
+     if (newValue === item.value) return; // No change
+     try {
+       await supabase
+-        .from('personality_config')
++        .from('system_config')
+         .upsert(
+           { key: item.key, value: newValue, category: item.category, description: item.description },
+           { onConflict: 'key' }
+@@ -250,27 +240,4 @@ export default function Settings() {
+           font-size: 13px;
+           text-align: right;
+           width: 200px;
+-          transition: var(--transition-fast);
+-        }
+-
+-        .config-input:focus { border-color: var(--color-accent-secondary); outline: none; background: rgba(124, 92, 252, 0.05); }
+-
+-        .core-stats { display: flex; flex-direction: column; gap: 16px; }
+-        .core-stat-item {
+-          display: flex;
+-          align-items: center;
+-          gap: 12px;
+-          font-family: var(--font-mono);
+-          font-size: 12px;
+-          font-weight: 700;
+-          color: var(--color-text-secondary);
+-        }
+-
+-        .status-panel { background: linear-gradient(135deg, var(--color-bg-surface), var(--color-bg-deepest)); }
+-
+-        .animate-spin { animation: spin 1s linear infinite; }
+-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+-      `}</style>
+-    </div>
+-  );
+-}
++          transition: var(--transition-fas
+\ No newline at end of file
+diff --git a/src/app/tasks/page.tsx b/src/app/tasks/page.tsx
+index ba4c81f..81b82e1 100644
+--- a/src/app/tasks/page.tsx
++++ b/src/app/tasks/page.tsx
+@@ -24,7 +24,8 @@ type Task = {
+ 
+ type AgentAction = {
+   id: string;
+-  type: string;
++  event_type: string;
++  title: string;
+   description: string;
+   created_at: string;
+ };
+@@ -37,6 +38,16 @@ export default function Tasks() {
+ 
+   useEffect(() => {
+     fetchData();
++    const channel = supabase
++      .channel('tasks-realtime')
++      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
++        if (activeTab === 'Human') fetchData();
++      })
++      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, () => {
++        if (activeTab === 'AI') fetchData();
++      })
++      .subscribe();
++    return () => { supabase.removeChannel(channel); };
+   }, [activeTab]);
+ 
+   async function fetchData() {
+@@ -48,7 +59,7 @@ export default function Tasks() {
+       const { data } = await supabase
+         .from('activity_log')
+         .select('*')
+-        .order('timestamp', { ascending: false })
++        .order('created_at', { ascending: false })
+         .limit(20);
+       if (data) setActions(data as AgentAction[]);
+     }
+@@ -100,11 +111,12 @@ export default function Tasks() {
+             </div>
+             <div className="action-body">
+               <div className="action-header">
+-                <span className="action-type">{action.type}</span>
++                <span className="action-type">{action.event_type}</span>
+                 <span className="action-time">
+                   {new Date(action.created_at).toLocaleString()}
+                 </span>
+               </div>
++              {action.title && <p className="action-title" style={{fontWeight:600, marginBottom:4, color:'var(--color-text-primary)'}}>{action.title}</p>}
+               <p className="action-description">{action.description}</p>
+             </div>
+           </div>
+@@ -324,3 +336,4 @@ export default function Tasks() {
+     </div>
+   );
+ }
++                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+\ No newline at end of file
