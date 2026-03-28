@@ -2,20 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Zap, 
-  CheckSquare, 
-  BarChart3, 
-  Brain, 
-  Unplug, 
+import {
+  LayoutDashboard,
+  Zap,
+  CheckSquare,
+  BarChart3,
+  Brain,
+  Unplug,
   Settings,
   ChevronRight,
   UserCircle,
   AlertTriangle,
   DollarSign,
   Radio,
-  Package
+  Package,
+  Users
 } from 'lucide-react';
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { name: 'Glitch Log', href: '/glitch', icon: AlertTriangle },
   { name: 'Portals', href: '/portals', icon: Radio },
   { name: 'Products', href: '/products', icon: Package },
+  { name: 'Maven Crew', href: '/crew', icon: Users },
   { name: 'Second Brain', href: '/brain', icon: Brain },
   { name: 'Connections', href: '/connections', icon: Unplug },
   { name: 'Settings', href: '/settings', icon: Settings },

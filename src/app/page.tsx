@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import {
   Activity,
@@ -78,12 +80,12 @@ type GlitchEntry = {
 /* ──────────────── AGENT CONFIG ──────────────── */
 
 const MAVEN_CREW = [
-  { name: "Veritas", role: "Truth Engine & Research", color: "#43e97b" },
-  { name: "Sapphire", role: "Core API & Orchestration", color: "#4facfe" },
-  { name: "Alfred", role: "Operations & Automation", color: "#ff9a9e" },
-  { name: "Yuki", role: "Creative & Content", color: "#fddb92" },
-  { name: "Anita", role: "Outreach & Nurture", color: "#ebedee" },
-  { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a" },
+  { name: "Yuki", role: "Creative & Content", color: "#fddb92", avatar: "/crew/yuki.png" },
+  { name: "Sapphire", role: "Core API & Orchestration", color: "#4facfe", avatar: "/crew/sapphire.png" },
+  { name: "Anita", role: "Outreach & Nurture", color: "#ebedee", avatar: "/crew/anita.png" },
+  { name: "Alfred", role: "Operations & Automation", color: "#ff9a9e", avatar: "/crew/alfred.png" },
+  { name: "Veritas", role: "Truth Engine & Research", color: "#43e97b", avatar: "/crew/veritas.png" },
+  { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a", avatar: "/crew/vector.png" },
 ];
 
 /* ──────────────── HELPERS ──────────────── */
@@ -399,32 +401,49 @@ export default function MissionControl() {
 
       {/* ═══════ SECTION 2 — MAVEN CREW STATUS ═══════ */}
       <section className="dashboard-section">
-        <h2 className="section-heading">MAVEN CREW STATUS</h2>
+        <div className="section-header-row">
+          <h2 className="section-heading">MAVEN CREW STATUS</h2>
+          <Link href="/crew" className="section-link">VIEW FULL CREW &rarr;</Link>
+        </div>
         <div className="crew-grid">
           {agentCards.map((agent) => (
-            <div key={agent.name} className="card crew-card" style={{ "--agent-color": agent.color } as React.CSSProperties}>
-              <div className="crew-card-header">
-                <div className="crew-identity">
-                  <Bot size={18} style={{ color: agent.color }} />
+            <div key={agent.name} className="card crew-card-v2" style={{ "--agent-color": agent.color } as React.CSSProperties}>
+              {/* AVATAR + IDENTITY */}
+              <div className="crew-avatar-row">
+                <div className="crew-avatar-wrap">
+                  <Image
+                    src={agent.avatar}
+                    alt={agent.name}
+                    width={56}
+                    height={56}
+                    className="crew-avatar-img"
+                    unoptimized
+                  />
+                  <div className={`avatar-status-dot ${agent.online ? "online" : "offline"}`} />
+                </div>
+                <div className="crew-id-col">
                   <span className="crew-name">{agent.name}</span>
-                </div>
-                <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
-                  {agent.online ? <Wifi size={12} /> : <WifiOff size={12} />}
-                  <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+                  <span className="crew-role">{agent.role}</span>
+                  <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
+                    {agent.online ? <Wifi size={10} /> : <WifiOff size={10} />}
+                    <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+                  </div>
                 </div>
               </div>
-              <span className="crew-role">{agent.role}</span>
-              <div className="crew-last-action">
-                <span className="crew-action-label">LAST ACTION</span>
-                <p className="crew-action-text">{agent.lastAction.length > 80 ? agent.lastAction.slice(0, 80) + "…" : agent.lastAction}</p>
-                {agent.lastSeen && <span className="crew-time">{timeAgo(agent.lastSeen)}</span>}
-              </div>
-              {agent.currentTask && (
-                <div className="crew-current-task">
-                  <span className="crew-task-label">ACTIVE TASK</span>
-                  <p className="crew-task-text">{agent.currentTask}</p>
+              {/* EXPANDABLE DETAILS */}
+              <div className="crew-details-expand">
+                <div className="crew-last-action">
+                  <span className="crew-action-label">LAST ACTION</span>
+                  <p className="crew-action-text">{agent.lastAction.length > 80 ? agent.lastAction.slice(0, 80) + "…" : agent.lastAction}</p>
+                  {agent.lastSeen && <span className="crew-time">{timeAgo(agent.lastSeen)}</span>}
                 </div>
-              )}
+                {agent.currentTask && (
+                  <div className="crew-current-task">
+                    <span className="crew-task-label">ACTIVE TASK</span>
+                    <p className="crew-task-text">{agent.currentTask}</p>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -741,22 +760,96 @@ export default function MissionControl() {
         }
 
         /* ── SECTION 2: CREW GRID ── */
+        .section-link {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          font-weight: 700;
+          color: #7C5CFC;
+          text-decoration: none;
+          letter-spacing: 0.1em;
+          transition: color 0.2s;
+        }
+        .section-link:hover { color: #9B7EFF; }
+
         .crew-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 16px;
         }
 
-        .crew-card {
-          padding: 20px !important;
+        .crew-card-v2 {
+          padding: 16px !important;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 12px;
           border-left: 3px solid var(--agent-color);
+          overflow: hidden;
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .crew-card-v2:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 0 32px rgba(124, 92, 252, 0.08);
         }
 
-        .crew-card:hover {
-          transform: translateY(-1px);
+        .crew-avatar-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .crew-avatar-wrap {
+          position: relative;
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+          border: 2px solid var(--agent-color);
+          box-shadow: 0 0 16px color-mix(in srgb, var(--agent-color) 25%, transparent);
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .crew-card-v2:hover .crew-avatar-wrap {
+          width: 72px;
+          height: 72px;
+          box-shadow: 0 0 32px color-mix(in srgb, var(--agent-color) 40%, transparent);
+        }
+
+        .crew-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        }
+
+        .avatar-status-dot {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          border: 2px solid var(--bg-primary, #0e0e0e);
+        }
+        .avatar-status-dot.online { background: #1D9E75; box-shadow: 0 0 8px rgba(29, 158, 117, 0.5); }
+        .avatar-status-dot.offline { background: #555; }
+
+        .crew-id-col {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+
+        /* HOVER EXPAND — details slide in */
+        .crew-details-expand {
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+          transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        .crew-card-v2:hover .crew-details-expand {
+          max-height: 200px;
+          opacity: 1;
         }
 
         .crew-card-header {
