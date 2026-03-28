@@ -19,6 +19,10 @@ import {
   FileText,
   Layers,
   Target,
+  Send,
+  Volume2,
+  X,
+  MessageCircle,
 } from "lucide-react";
 
 /* ──────────────────── TYPES ──────────────────── */
@@ -221,6 +225,8 @@ export default function MissionControl() {
   const [contentTransmissions, setContentTransmissions] = useState<ContentTransmission[]>([]);
   const [vidRush, setVidRush] = useState<VidRushEntry[]>([]);
   const [glitches, setGlitches] = useState<GlitchEntry[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [messageInput, setMessageInput] = useState("");
 
   /* ── FETCH FUNCTIONS ── */
 
@@ -405,9 +411,90 @@ export default function MissionControl() {
           <h2 className="section-heading">MAVEN CREW STATUS</h2>
           <Link href="/crew" className="section-link">VIEW FULL CREW &rarr;</Link>
         </div>
-        <div className="crew-grid">
+
+        {/* HERO PANEL — shown when an agent is clicked */}
+        {selectedAgent && (() => {
+          const agent = agentCards.find(a => a.name === selectedAgent);
+          if (!agent) return null;
+          const agentHistoryFiltered = agentHistory
+            .filter(h => h.agent_name?.toLowerCase() === agent.name.toLowerCase())
+            .slice(0, 8);
+          return (
+            <div className="crew-hero-panel" style={{ "--agent-color": agent.color } as React.CSSProperties}>
+              <button className="hero-close" onClick={() => { setSelectedAgent(null); setMessageInput(""); }}>
+                <X size={18} />
+              </button>
+              <div className="hero-top">
+                <div className="hero-avatar-wrap">
+                  <Image src={agent.avatar} alt={agent.name} width={140} height={140} className="crew-avatar-img" unoptimized />
+                  <div className={`avatar-status-dot hero-dot ${agent.online ? "online" : "offline"}`} />
+                </div>
+                <div className="hero-identity">
+                  <h3 className="hero-name">{agent.name}</h3>
+                  <span className="hero-role">{agent.role}</span>
+                  <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
+                    {agent.online ? <Wifi size={12} /> : <WifiOff size={12} />}
+                    <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+                  </div>
+                  {agent.currentTask && (
+                    <div className="hero-active-task">
+                      <span className="hero-task-label">ACTIVE TASK</span>
+                      <p className="hero-task-text">{agent.currentTask}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ACTIVITY LOG */}
+              <div className="hero-activity">
+                <span className="hero-section-label">RECENT TRANSMISSIONS</span>
+                <div className="hero-activity-feed">
+                  {agentHistoryFiltered.length > 0 ? agentHistoryFiltered.map((entry) => (
+                    <div key={entry.id} className="hero-feed-item">
+                      <span className="feed-time">{timeAgo(entry.created_at)}</span>
+                      <p className="feed-content">{entry.content}</p>
+                      <button className="feed-speak-btn" title="Speak this transmission">
+                        <Volume2 size={12} />
+                      </button>
+                    </div>
+                  )) : (
+                    <div className="hero-feed-empty">No transmissions recorded</div>
+                  )}
+                </div>
+              </div>
+
+              {/* MESSAGE INPUT */}
+              <div className="hero-message-bar">
+                <MessageCircle size={16} className="msg-icon" />
+                <input
+                  type="text"
+                  className="hero-msg-input"
+                  placeholder={`Transmit to ${agent.name}...`}
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && messageInput.trim()) { setMessageInput(""); } }}
+                />
+                <button
+                  className="hero-send-btn"
+                  disabled={!messageInput.trim()}
+                  onClick={() => { if (messageInput.trim()) setMessageInput(""); }}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* CREW GRID — cards with hover expand + click to hero */}
+        <div className={`crew-grid ${selectedAgent ? "crew-grid-dimmed" : ""}`}>
           {agentCards.map((agent) => (
-            <div key={agent.name} className="card crew-card-v2" style={{ "--agent-color": agent.color } as React.CSSProperties}>
+            <div
+              key={agent.name}
+              className={`card crew-card-v2 ${selectedAgent === agent.name ? "crew-card-selected" : ""}`}
+              style={{ "--agent-color": agent.color } as React.CSSProperties}
+              onClick={() => { setSelectedAgent(selectedAgent === agent.name ? null : agent.name); setMessageInput(""); }}
+            >
               {/* AVATAR + IDENTITY */}
               <div className="crew-avatar-row">
                 <div className="crew-avatar-wrap">
@@ -430,7 +517,7 @@ export default function MissionControl() {
                   </div>
                 </div>
               </div>
-              {/* EXPANDABLE DETAILS */}
+              {/* HOVER EXPAND — details slide in */}
               <div className="crew-details-expand">
                 <div className="crew-last-action">
                   <span className="crew-action-label">LAST ACTION</span>
@@ -850,6 +937,250 @@ export default function MissionControl() {
         .crew-card-v2:hover .crew-details-expand {
           max-height: 200px;
           opacity: 1;
+        }
+
+        .crew-card-v2 { cursor: pointer; }
+        .crew-card-selected {
+          border-color: var(--agent-color) !important;
+          box-shadow: 0 0 40px color-mix(in srgb, var(--agent-color) 30%, transparent) !important;
+        }
+        .crew-grid-dimmed .crew-card-v2:not(.crew-card-selected) {
+          opacity: 0.4;
+          transform: scale(0.97);
+        }
+
+        /* ── HERO PANEL — full agent command bridge ── */
+        .crew-hero-panel {
+          background: linear-gradient(135deg, rgba(14, 14, 14, 0.98), rgba(20, 18, 30, 0.95));
+          border: 1px solid var(--agent-color);
+          border-left: 4px solid var(--agent-color);
+          border-radius: 16px;
+          padding: 32px;
+          margin-bottom: 20px;
+          position: relative;
+          box-shadow: 0 0 60px color-mix(in srgb, var(--agent-color) 15%, transparent),
+                      inset 0 0 80px rgba(0, 0, 0, 0.4);
+          animation: heroSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes heroSlideIn {
+          from { opacity: 0; transform: translateY(-16px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .hero-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          color: var(--color-text-muted);
+          padding: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .hero-close:hover {
+          color: #fff;
+          background: rgba(255, 255, 255, 0.1);
+          border-color: var(--agent-color);
+        }
+
+        .hero-top {
+          display: flex;
+          align-items: flex-start;
+          gap: 28px;
+          margin-bottom: 28px;
+        }
+
+        .hero-avatar-wrap {
+          position: relative;
+          width: 140px;
+          height: 140px;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+          border: 3px solid var(--agent-color);
+          box-shadow: 0 0 50px color-mix(in srgb, var(--agent-color) 35%, transparent);
+        }
+        .hero-dot {
+          width: 16px;
+          height: 16px;
+          bottom: 6px;
+          right: 6px;
+          border-width: 3px;
+        }
+
+        .hero-identity {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding-top: 8px;
+        }
+        .hero-name {
+          font-size: 28px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          color: var(--agent-color);
+          text-shadow: 0 0 30px color-mix(in srgb, var(--agent-color) 30%, transparent);
+        }
+        .hero-role {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: 0.15em;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+        }
+        .hero-active-task {
+          margin-top: 12px;
+          padding: 10px 14px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 8px;
+        }
+        .hero-task-label {
+          font-family: var(--font-mono);
+          font-size: 8px;
+          letter-spacing: 0.2em;
+          color: var(--color-text-muted);
+          display: block;
+          margin-bottom: 4px;
+        }
+        .hero-task-text {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.5;
+          margin: 0;
+        }
+
+        /* ── ACTIVITY FEED ── */
+        .hero-activity {
+          margin-bottom: 20px;
+        }
+        .hero-section-label {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          letter-spacing: 0.2em;
+          color: var(--color-text-muted);
+          display: block;
+          margin-bottom: 12px;
+        }
+        .hero-activity-feed {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-height: 240px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .hero-feed-item {
+          display: grid;
+          grid-template-columns: 64px 1fr 32px;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 8px;
+          transition: border-color 0.2s;
+        }
+        .hero-feed-item:hover {
+          border-color: color-mix(in srgb, var(--agent-color) 30%, transparent);
+        }
+        .feed-time {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--color-text-muted);
+          letter-spacing: 0.05em;
+        }
+        .feed-content {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.5;
+          margin: 0;
+        }
+        .feed-speak-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 6px;
+          color: var(--color-text-muted);
+          padding: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .feed-speak-btn:hover {
+          color: var(--agent-color);
+          border-color: var(--agent-color);
+          background: color-mix(in srgb, var(--agent-color) 10%, transparent);
+          box-shadow: 0 0 12px color-mix(in srgb, var(--agent-color) 20%, transparent);
+        }
+        .hero-feed-empty {
+          font-size: 12px;
+          color: var(--color-text-muted);
+          text-align: center;
+          padding: 24px;
+          font-style: italic;
+        }
+
+        /* ── MESSAGE BAR ── */
+        .hero-message-bar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          transition: border-color 0.2s;
+        }
+        .hero-message-bar:focus-within {
+          border-color: var(--agent-color);
+          box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 10%, transparent);
+        }
+        .msg-icon {
+          color: var(--color-text-muted);
+          flex-shrink: 0;
+        }
+        .hero-msg-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          font-family: var(--font-mono);
+          font-size: 13px;
+          color: var(--color-text-primary);
+          letter-spacing: 0.02em;
+        }
+        .hero-msg-input::placeholder {
+          color: var(--color-text-muted);
+          opacity: 0.6;
+        }
+        .hero-send-btn {
+          background: var(--agent-color);
+          border: none;
+          border-radius: 8px;
+          color: #0e0e0e;
+          padding: 8px 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          font-weight: 700;
+        }
+        .hero-send-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+        .hero-send-btn:not(:disabled):hover {
+          box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 40%, transparent);
+          transform: scale(1.05);
         }
 
         .crew-card-header {
