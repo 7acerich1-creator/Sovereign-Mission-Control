@@ -227,6 +227,85 @@ export default function MissionControl() {
   const [glitches, setGlitches] = useState<GlitchEntry[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<{ id: string; agent_name: string; sender: string; content: string; created_at: string; voice_played?: boolean }[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const chatFeedRef = useRef<HTMLDivElement>(null);
+
+  /* ── CHAT: fetch history when agent selected ── */
+  useEffect(() => {
+    if (!selectedAgent) { setChatMessages([]); return; }
+    const agentKey = selectedAgent.toLowerCase();
+    fetch(`/api/chat?agent=${agentKey}&limit=30`)
+      .then(r => r.json())
+      .then(d => { if (d.messages) setChatMessages(d.messages); })
+      .catch(() => {});
+
+    // Realtime subscription for new chat messages
+    const channel = supabase
+      .channel(`chat-${agentKey}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `agent_name=eq.${agentKey}`,
+      }, (payload) => {
+        setChatMessages(prev => [...prev, payload.new as any]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAgent]);
+
+  // Auto-scroll chat feed
+  useEffect(() => {
+    if (chatFeedRef.current) {
+      chatFeedRef.current.scrollTop = chatFeedRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
+  async function speakText(agentName: string, text: string, messageId: string) {
+    if (speakingId) return; // prevent overlapping
+    setSpeakingId(messageId);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_name: agentName, text }),
+      });
+      if (!res.ok) {
+        console.error('TTS error:', await res.text());
+        setSpeakingId(null);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
+      audio.play();
+    } catch (err) {
+      console.error('TTS failed:', err);
+      setSpeakingId(null);
+    }
+  }
+
+  async function sendMessage() {
+    if (!selectedAgent || !messageInput.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_name: selectedAgent, content: messageInput.trim() }),
+      });
+      setMessageInput("");
+    } catch (err) {
+      console.error('Send failed:', err);
+    }
+    setIsSending(false);
+  }
 
   /* ── FETCH FUNCTIONS ── */
 
@@ -445,25 +524,45 @@ export default function MissionControl() {
                 </div>
               </div>
 
-              {/* ACTIVITY LOG */}
+              {/* CHAT FEED — live conversation */}
               <div className="hero-activity">
-                <span className="hero-section-label">RECENT TRANSMISSIONS</span>
-                <div className="hero-activity-feed">
-                  {agentHistoryFiltered.length > 0 ? agentHistoryFiltered.map((entry) => (
+                <span className="hero-section-label">TRANSMISSIONS</span>
+                <div className="hero-activity-feed" ref={chatFeedRef}>
+                  {/* Legacy activity (from agent_history) */}
+                  {chatMessages.length === 0 && agentHistoryFiltered.length > 0 && agentHistoryFiltered.map((entry) => (
                     <div key={entry.id} className="hero-feed-item">
                       <span className="feed-time">{timeAgo(entry.created_at)}</span>
                       <p className="feed-content">{entry.content}</p>
-                      <button className="feed-speak-btn" title="Speak this transmission">
+                      <button
+                        className={`feed-speak-btn ${speakingId === entry.id ? 'speaking' : ''}`}
+                        title="Speak this transmission"
+                        onClick={(e) => { e.stopPropagation(); speakText(agent.name, entry.content, entry.id); }}
+                      >
                         <Volume2 size={12} />
                       </button>
                     </div>
-                  )) : (
-                    <div className="hero-feed-empty">No transmissions recorded</div>
+                  ))}
+                  {/* Live chat messages */}
+                  {chatMessages.map((msg) => (
+                    <div key={msg.id} className={`hero-feed-item ${msg.sender === 'architect' ? 'msg-architect' : 'msg-agent'}`}>
+                      <span className="feed-sender">{msg.sender === 'architect' ? 'ACE' : agent.name.toUpperCase()}</span>
+                      <p className="feed-content">{msg.content}</p>
+                      <button
+                        className={`feed-speak-btn ${speakingId === msg.id ? 'speaking' : ''}`}
+                        title="Speak this transmission"
+                        onClick={(e) => { e.stopPropagation(); speakText(agent.name, msg.content, msg.id); }}
+                      >
+                        <Volume2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {chatMessages.length === 0 && agentHistoryFiltered.length === 0 && (
+                    <div className="hero-feed-empty">No transmissions yet. Send the first message.</div>
                   )}
                 </div>
               </div>
 
-              {/* MESSAGE INPUT */}
+              {/* MESSAGE INPUT — live wired */}
               <div className="hero-message-bar">
                 <MessageCircle size={16} className="msg-icon" />
                 <input
@@ -472,12 +571,13 @@ export default function MissionControl() {
                   placeholder={`Transmit to ${agent.name}...`}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && messageInput.trim()) { setMessageInput(""); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
+                  disabled={isSending}
                 />
                 <button
                   className="hero-send-btn"
-                  disabled={!messageInput.trim()}
-                  onClick={() => { if (messageInput.trim()) setMessageInput(""); }}
+                  disabled={!messageInput.trim() || isSending}
+                  onClick={sendMessage}
                 >
                   <Send size={16} />
                 </button>
@@ -1120,12 +1220,43 @@ export default function MissionControl() {
           background: color-mix(in srgb, var(--agent-color) 10%, transparent);
           box-shadow: 0 0 12px color-mix(in srgb, var(--agent-color) 20%, transparent);
         }
+        .feed-speak-btn.speaking {
+          color: var(--agent-color);
+          border-color: var(--agent-color);
+          animation: speakPulse 1s ease-in-out infinite;
+        }
+        @keyframes speakPulse {
+          0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--agent-color) 20%, transparent); }
+          50% { box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 50%, transparent); }
+        }
         .hero-feed-empty {
           font-size: 12px;
           color: var(--color-text-muted);
           text-align: center;
           padding: 24px;
           font-style: italic;
+        }
+
+        /* Chat message variants */
+        .feed-sender {
+          font-family: var(--font-mono);
+          font-size: 8px;
+          font-weight: 800;
+          letter-spacing: 0.2em;
+          grid-column: 1;
+        }
+        .msg-architect {
+          border-left: 2px solid #C9A84C;
+        }
+        .msg-architect .feed-sender { color: #C9A84C; }
+        .msg-agent {
+          border-left: 2px solid var(--agent-color);
+          background: color-mix(in srgb, var(--agent-color) 4%, transparent) !important;
+        }
+        .msg-agent .feed-sender { color: var(--agent-color); }
+        .msg-architect .feed-content,
+        .msg-agent .feed-content {
+          grid-column: 2;
         }
 
         /* ── MESSAGE BAR ── */
