@@ -65,7 +65,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 2,
     codename: 'THE FIELD MANUAL',
-    title: 'Protocol 77',
+    title: 'The Shield: Protocol 77',
     subtitle: 'The Sovereign\'s Field Manual. 4-phase guided runner.',
     price: '$77',
     color: '#3EF7E8',
@@ -81,7 +81,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 3,
     codename: 'THE OPERATING SYSTEM',
-    title: 'Sovereign Architecture Manifesto',
+    title: 'The Map: Navigation Override',
     subtitle: '5-phase OS installation. The architecture becomes visible.',
     price: '$177',
     color: '#7C5CFC',
@@ -97,7 +97,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 4,
     codename: 'DECLASSIFICATION',
-    title: 'System Mastery Architecture: Phase 1',
+    title: 'The Architect: Foundation Protocol',
     subtitle: 'Stop Reacting. Start Architecting. The full course.',
     price: '$477',
     priceNote: '$300 with Manifesto credit',
@@ -114,7 +114,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 5,
     codename: 'NEUTRALIZATION',
-    title: 'System Mastery Architecture: Phase 2',
+    title: 'The Architect: Adversarial Systems',
     subtitle: 'The Architecture Under Load. Real-world deployment.',
     price: '$1,497',
     color: '#C9804C',
@@ -139,7 +139,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 6,
     codename: 'THE DEPLOYMENT',
-    title: 'System Mastery Architecture: Phase 3',
+    title: 'The Architect: Sovereign Integration',
     subtitle: 'Full Sovereign Synthesis. The Integration.',
     price: '$3,777',
     color: '#C9A84C',
@@ -165,7 +165,7 @@ const FUNNEL: FunnelTier[] = [
   {
     tier: 7,
     codename: 'PRIME ARCHITECT',
-    title: 'The Inner Circle',
+    title: 'Inner Circle: Sovereign Licensing',
     subtitle: 'Direct Access to the Architect. Application only.',
     price: 'APPLICATION',
     color: '#E8C56A',
