@@ -173,7 +173,7 @@ const FUNNEL: FunnelTier[] = [
     borderColor: 'rgba(232, 197, 106, 0.3)',
     icon: Lock,
     liveUrl: 'https://sovereign-synthesis.com/tier-7/inner-circle',
-    postPurchaseUrl: 'https://t.me/sovereignsynthesis',
+    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-7/course-portal',
     status: 'APPLICATION',
     features: [
       'Full Member Portal — 65 lessons, 24 workbooks across 6 phases',
