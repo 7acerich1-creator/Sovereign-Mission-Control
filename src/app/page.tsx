@@ -359,15 +359,8 @@ export default function MissionControl() {
 
   const [heroFullscreen, setHeroFullscreen] = useState(false);
 
-  // Lock body scroll when fullscreen chat is open
-  useEffect(() => {
-    if (heroFullscreen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [heroFullscreen]);
+  // Fullscreen chat uses position:fixed overlay — no body scroll lock needed.
+  // The overlay itself handles containment via inset:0 and overflow management.
 
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);

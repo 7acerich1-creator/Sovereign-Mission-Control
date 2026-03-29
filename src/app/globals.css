@@ -229,6 +229,10 @@ body {
   flex-direction: column;
   padding: 24px;
   z-index: 100;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
 }
 
 .sidebar-header {

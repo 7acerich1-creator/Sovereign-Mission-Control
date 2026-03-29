@@ -114,15 +114,8 @@ export default function CrewPage() {
   const shouldAutoScroll = useRef(true);
   const PAGE_SIZE = 50;
 
-  // Lock body scroll when fullscreen chat is open
-  useEffect(() => {
-    if (chatFullscreen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [chatFullscreen]);
+  // Fullscreen chat uses position:fixed overlay — no body scroll lock needed.
+  // The overlay itself handles containment via inset:0 and overflow management.
 
   // TTS state
   const [speakingId, setSpeakingId] = useState<string | null>(null);

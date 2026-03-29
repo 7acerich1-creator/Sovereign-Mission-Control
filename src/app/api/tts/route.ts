@@ -17,9 +17,9 @@ import { NextResponse } from 'next/server';
 // Update these with your preferred voices
 const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similarity: number }> = {
   yuki: {
-    voiceId: 't0jbNlBVZ17f02VDIeMI',  // "Jessie" — raspy, edgy, video-game energy. Max attitude.
-    stability: 0.22,       // very low = maximum expressiveness, energy, attitude
-    similarity: 0.70,      // loose = dynamic, punchy delivery
+    voiceId: '21m00Tcm4TlvDq8ikWAM',  // "Rachel" — guaranteed-available premade voice. Calm, clear, natural.
+    stability: 0.30,       // low = expressive and dynamic
+    similarity: 0.75,      // balanced = natural delivery
   },
   sapphire: {
     voiceId: 'EXAVITQu4vr4xnSDxMaL',  // "Sarah" — soft American female. Conversational, clean, direct.

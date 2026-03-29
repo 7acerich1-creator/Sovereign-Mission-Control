@@ -20,7 +20,9 @@ import {
   MessageCircle,
   Send,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Pencil,
+  Save
 } from 'lucide-react';
 
 type Task = {
@@ -83,6 +85,12 @@ export default function Tasks() {
   const [chatResponse, setChatResponse] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+
+  // Edit state
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editAgent, setEditAgent] = useState('');
+  const [editPriority, setEditPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [editCategory, setEditCategory] = useState('Revenue');
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
@@ -148,6 +156,23 @@ export default function Tasks() {
 
   async function deleteTask(id: string) {
     await supabase.from('tasks').delete().eq('id', id);
+  }
+
+  function openEdit(task: Task) {
+    setEditTask(task);
+    setEditAgent(task.assigned_agent || '');
+    setEditPriority(task.priority);
+    setEditCategory(task.category || 'Revenue');
+  }
+
+  async function saveEdit() {
+    if (!editTask) return;
+    await supabase.from('tasks').update({
+      assigned_agent: editAgent || null,
+      priority: editPriority,
+      category: editCategory,
+    }).eq('id', editTask.id);
+    setEditTask(null);
   }
 
   async function sendTaskChat() {
@@ -230,7 +255,7 @@ export default function Tasks() {
                       {task.description && <p className="task-desc">{task.description}</p>}
 
                       {/* Agent Assignment Block */}
-                      {task.assigned_agent && (
+                      {task.assigned_agent ? (
                         <div className="task-agent-block" style={{ borderColor: `${agentColor}30` }}>
                           <div className="task-agent-avatar" style={{ background: `${agentColor}20`, color: agentColor }}>
                             <UserCircle size={14} />
@@ -248,6 +273,11 @@ export default function Tasks() {
                             <MessageCircle size={12} />
                           </button>
                         </div>
+                      ) : (
+                        <button className="task-assign-prompt" onClick={() => openEdit(task)}>
+                          <UserCircle size={13} />
+                          <span>ASSIGN CREW MEMBER</span>
+                        </button>
                       )}
 
                       <div className="task-footer">
@@ -260,6 +290,9 @@ export default function Tasks() {
                           )}
                         </div>
                         <div className="task-actions">
+                          <button className="task-action-btn edit" onClick={() => openEdit(task)} title="Edit Task">
+                            <Pencil size={12} />
+                          </button>
                           {col.next && (
                             <button className="task-action-btn move" onClick={() => moveTask(task.id, col.next!)} title={`Move to ${col.next}`}>
                               <ArrowRight size={13} />
@@ -500,6 +533,49 @@ export default function Tasks() {
       {activeTab === 'Human' ? renderKanban() : renderAgentActions()}
       {renderTaskChat()}
 
+      {/* EDIT TASK MODAL */}
+      {editTask && (
+        <div className="edit-overlay fade-in" onClick={() => setEditTask(null)}>
+          <div className="edit-modal" onClick={e => e.stopPropagation()}>
+            <div className="edit-modal-header">
+              <Pencil size={14} style={{ color: 'var(--color-accent-secondary)' }} />
+              <span>EDIT MISSION TASK</span>
+              <button className="edit-close" onClick={() => setEditTask(null)}><X size={14} /></button>
+            </div>
+            <div className="edit-task-title">{editTask.title}</div>
+            <div className="edit-form-fields">
+              <div className="edit-field">
+                <label>ASSIGN CREW MEMBER</label>
+                <select className="form-select" value={editAgent} onChange={e => setEditAgent(e.target.value)}>
+                  <option value="">Unassigned</option>
+                  {CREW_AGENTS.map(a => <option key={a.name} value={a.name}>{a.name} — {a.role}</option>)}
+                </select>
+              </div>
+              <div className="edit-field">
+                <label>PRIORITY</label>
+                <div className="priority-picker">
+                  {(['High', 'Medium', 'Low'] as const).map(p => (
+                    <button key={p} className={`prio-btn ${p.toLowerCase()} ${editPriority === p ? 'active' : ''}`} onClick={() => setEditPriority(p)}>
+                      <Flag size={11} />{p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="edit-field">
+                <label>MISSION CATEGORY</label>
+                <select className="form-select" value={editCategory} onChange={e => setEditCategory(e.target.value)}>
+                  {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <button className="submit-btn" onClick={saveEdit}>
+              <Save size={14} />
+              SAVE CHANGES
+            </button>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
         .tab-switcher {
           display: flex;
@@ -738,6 +814,54 @@ export default function Tasks() {
           cursor: pointer; display: flex; align-items: center; transition: var(--transition-fast);
         }
         .task-chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ASSIGN PROMPT */
+        .task-assign-prompt {
+          display: flex; align-items: center; gap: 6px; width: 100%;
+          padding: 8px 10px; border-radius: 6px; border: 1px dashed rgba(124, 92, 252, 0.3);
+          background: rgba(124, 92, 252, 0.04); color: var(--color-accent-secondary);
+          font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
+          margin-top: 6px;
+        }
+        .task-assign-prompt:hover { background: rgba(124, 92, 252, 0.12); border-color: rgba(124, 92, 252, 0.5); }
+
+        /* EDIT BUTTON */
+        .task-action-btn.edit { color: var(--color-accent-secondary); }
+        .task-action-btn.edit:hover { background: rgba(124, 92, 252, 0.15); }
+
+        /* EDIT MODAL */
+        .edit-overlay {
+          position: fixed; inset: 0; z-index: 10000;
+          background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .edit-modal {
+          background: var(--color-bg-surface); border: 1px solid var(--border-color);
+          border-radius: 16px; padding: 28px; width: 420px; max-width: 90vw;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        .edit-modal-header {
+          display: flex; align-items: center; gap: 8px;
+          font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+          letter-spacing: 0.08em; color: var(--color-text-primary); margin-bottom: 16px;
+        }
+        .edit-close {
+          margin-left: auto; background: none; border: none; color: var(--color-text-muted);
+          cursor: pointer; padding: 4px;
+        }
+        .edit-close:hover { color: var(--color-text-primary); }
+        .edit-task-title {
+          font-size: 15px; font-weight: 700; color: var(--color-text-primary);
+          margin-bottom: 20px; padding-bottom: 16px;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .edit-form-fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+        .edit-field label {
+          display: block; font-family: var(--font-mono); font-size: 10px;
+          font-weight: 700; letter-spacing: 0.08em; color: var(--color-text-muted);
+          margin-bottom: 6px;
+        }
 
         /* AGENT ACTIONS */
         .actions-list { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
