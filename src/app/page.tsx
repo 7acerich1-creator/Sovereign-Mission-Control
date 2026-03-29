@@ -24,6 +24,9 @@ import {
   X,
   MessageCircle,
   Trash2,
+  Maximize2,
+  Minimize2,
+  Square,
 } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
@@ -326,10 +329,23 @@ export default function MissionControl() {
     } catch (err) { console.error('Clear failed:', err); }
   }
 
+  const [heroFullscreen, setHeroFullscreen] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  function stopSpeaking() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      const src = audioRef.current.src;
+      audioRef.current = null;
+      if (src) URL.revokeObjectURL(src);
+    }
+    setSpeakingId(null);
+  }
 
   async function speakText(agentName: string, text: string, messageId: string) {
-    if (speakingId) return; // prevent overlapping
+    if (speakingId) { stopSpeaking(); return; } // click again to stop
     setSpeakingId(messageId);
     try {
       const res = await fetch('/api/tts', {
@@ -345,11 +361,13 @@ export default function MissionControl() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.onended = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
+      audioRef.current = audio;
+      audio.onended = () => { audioRef.current = null; setSpeakingId(null); URL.revokeObjectURL(url); };
+      audio.onerror = () => { audioRef.current = null; setSpeakingId(null); URL.revokeObjectURL(url); };
       audio.play();
     } catch (err) {
       console.error('TTS failed:', err);
+      audioRef.current = null;
       setSpeakingId(null);
     }
   }
@@ -562,10 +580,15 @@ export default function MissionControl() {
             .filter(h => h.agent_name?.toLowerCase() === agent.name.toLowerCase())
             .slice(0, 8);
           return (
-            <div className="crew-hero-panel" style={{ "--agent-color": agent.color } as React.CSSProperties}>
-              <button className="hero-close" onClick={() => { setSelectedAgent(null); setMessageInput(""); }}>
-                <X size={18} />
-              </button>
+            <div className={`crew-hero-panel ${heroFullscreen ? 'hero-fullscreen' : ''}`} style={{ "--agent-color": agent.color } as React.CSSProperties}>
+              <div className="hero-controls">
+                <button className="hero-control-btn" onClick={() => setHeroFullscreen(f => !f)} title={heroFullscreen ? "Exit fullscreen" : "Expand fullscreen"}>
+                  {heroFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+                <button className="hero-control-btn" onClick={() => { setSelectedAgent(null); setMessageInput(""); setHeroFullscreen(false); }}>
+                  <X size={18} />
+                </button>
+              </div>
               <div className="hero-top">
                 <div className="hero-avatar-wrap">
                   <Image src={agent.avatar} alt={agent.name} width={140} height={140} className="crew-avatar-img" unoptimized />
@@ -610,10 +633,10 @@ export default function MissionControl() {
                       <p className="feed-content">{entry.content}</p>
                       <button
                         className={`feed-speak-btn ${speakingId === entry.id ? 'speaking' : ''}`}
-                        title="Speak this transmission"
+                        title={speakingId === entry.id ? "Stop playback" : "Speak this transmission"}
                         onClick={(e) => { e.stopPropagation(); speakText(agent.name, entry.content, entry.id); }}
                       >
-                        <Volume2 size={12} />
+                        {speakingId === entry.id ? <Square size={10} /> : <Volume2 size={12} />}
                       </button>
                     </div>
                   ))}
@@ -625,10 +648,10 @@ export default function MissionControl() {
                       <div className="feed-actions">
                         <button
                           className={`feed-speak-btn ${speakingId === msg.id ? 'speaking' : ''}`}
-                          title="Speak this transmission"
+                          title={speakingId === msg.id ? "Stop playback" : "Speak this transmission"}
                           onClick={(e) => { e.stopPropagation(); speakText(agent.name, msg.content, msg.id); }}
                         >
-                          <Volume2 size={12} />
+                          {speakingId === msg.id ? <Square size={10} /> : <Volume2 size={12} />}
                         </button>
                         <button
                           className="feed-delete-btn"
@@ -1162,10 +1185,15 @@ export default function MissionControl() {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        .hero-close {
+        .hero-controls {
           position: absolute;
           top: 16px;
           right: 16px;
+          display: flex;
+          gap: 6px;
+          z-index: 10;
+        }
+        .hero-control-btn {
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 8px;
@@ -1177,10 +1205,28 @@ export default function MissionControl() {
           align-items: center;
           justify-content: center;
         }
-        .hero-close:hover {
+        .hero-control-btn:hover {
           color: #fff;
           background: rgba(255, 255, 255, 0.1);
           border-color: var(--agent-color);
+        }
+
+        /* Fullscreen mode */
+        .hero-fullscreen {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
+          border-radius: 0;
+          margin: 0;
+          padding: 32px;
+          overflow-y: auto;
+          animation: none;
+        }
+        .hero-fullscreen .hero-activity-feed {
+          max-height: calc(100vh - 380px);
         }
 
         .hero-top {
