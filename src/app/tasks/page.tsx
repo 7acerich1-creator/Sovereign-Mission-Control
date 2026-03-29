@@ -120,6 +120,12 @@ export default function Tasks() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, () => {
         if (activeTab === 'AI') fetchData();
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+        if (activeTab === 'AI') fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'glitch_log' }, () => {
+        if (activeTab === 'AI') fetchData();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeTab]);
@@ -130,14 +136,89 @@ export default function Tasks() {
       const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (data) setTasks(data as Task[]);
     } else {
-      const { data } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (data) setActions(data as AgentAction[]);
+      // Aggregate crew actions from multiple sources
+      const [activityRes, chatRes, glitchRes] = await Promise.all([
+        supabase.from('activity_log').select('id, event_type, title, description, created_at, agent_name').order('created_at', { ascending: false }).limit(15),
+        supabase.from('chat_messages').select('id, agent_name, sender, content, created_at').eq('sender', 'agent').order('created_at', { ascending: false }).limit(15),
+        supabase.from('glitch_log').select('id, description, severity, created_at, resolved').order('created_at', { ascending: false }).limit(10),
+      ]);
+
+      const combined: AgentAction[] = [];
+
+      // Activity log entries
+      if (activityRes.data) {
+        for (const a of activityRes.data) {
+          combined.push({
+            id: a.id,
+            event_type: a.event_type || 'activity',
+            title: a.title || `${(a.agent_name || 'System').toUpperCase()} Action`,
+            description: a.description || '',
+            created_at: a.created_at,
+          });
+        }
+      }
+
+      // Agent chat responses → crew actions
+      if (chatRes.data) {
+        for (const msg of chatRes.data) {
+          combined.push({
+            id: msg.id,
+            event_type: 'transmission',
+            title: `${(msg.agent_name || 'agent').toUpperCase()} Transmission`,
+            description: msg.content?.slice(0, 300) || '',
+            created_at: msg.created_at,
+          });
+        }
+      }
+
+      // Glitch log entries → crew actions
+      if (glitchRes.data) {
+        for (const g of glitchRes.data) {
+          combined.push({
+            id: g.id,
+            event_type: g.resolved ? 'glitch_resolved' : 'glitch_detected',
+            title: `Anomaly ${g.resolved ? 'Resolved' : 'Detected'} — ${g.severity}`,
+            description: g.description || '',
+            created_at: g.created_at,
+          });
+        }
+      }
+
+      // Sort by timestamp descending and take top 30
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setActions(combined.slice(0, 30));
     }
     setLoading(false);
+  }
+
+  // Autonomous crew briefing — agent auto-responds when assigned to a task
+  async function triggerCrewBriefing(agentName: string, taskTitle: string, taskDesc: string | null, taskCategory: string, taskPriority: string) {
+    try {
+      const briefingPrompt = `[AUTONOMOUS TASK BRIEFING — You have just been assigned a new mission task]\n\nTask: "${taskTitle}"\nCategory: ${taskCategory}\nPriority: ${taskPriority}\n${taskDesc ? `Description: ${taskDesc}\n` : ''}\nDeliver your initial assessment: What's your read on this task? What's your approach? Flag any blockers or dependencies. Keep it tight — this is your opening move, not the full playbook.`;
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_name: agentName.toLowerCase(),
+          content: briefingPrompt,
+        }),
+      });
+      const data = await res.json();
+
+      // Also log to activity_log for the Crew Actions feed
+      if (data.response) {
+        await supabase.from('activity_log').insert({
+          event_type: 'task_briefing',
+          title: `${agentName} assigned to: ${taskTitle}`,
+          description: data.response.slice(0, 500),
+          agent_name: agentName.toLowerCase(),
+          status: 'success',
+        });
+      }
+    } catch (err) {
+      console.error('Crew briefing failed:', err);
+    }
   }
 
   async function createTask() {
@@ -153,6 +234,12 @@ export default function Tasks() {
       category: newCategory,
       due_date: newDueDate || null,
     });
+
+    // Trigger autonomous crew briefing
+    if (assignedAgent) {
+      triggerCrewBriefing(assignedAgent, newTitle.trim(), newDesc.trim() || null, newCategory, newPriority);
+    }
+
     setNewTitle('');
     setNewDesc('');
     setNewPriority('Medium');
@@ -163,7 +250,19 @@ export default function Tasks() {
   }
 
   async function moveTask(id: string, newStatus: 'To Do' | 'In Progress' | 'Complete') {
+    const task = tasks.find(t => t.id === id);
     await supabase.from('tasks').update({ status: newStatus }).eq('id', id);
+
+    // Log status change to activity_log
+    if (task) {
+      await supabase.from('activity_log').insert({
+        event_type: 'task_status_change',
+        title: `${task.assigned_to || 'Unassigned'}: ${task.title}`,
+        description: `Task moved to ${newStatus}`,
+        agent_name: task.assigned_to?.toLowerCase() || null,
+        status: 'success',
+      });
+    }
   }
 
   async function deleteTask(id: string) {
@@ -179,6 +278,7 @@ export default function Tasks() {
 
   async function saveEdit() {
     if (!editTask) return;
+    const previousAgent = editTask.assigned_to;
     const { error } = await supabase.from('tasks').update({
       assigned_to: editAgent || null,
       priority: editPriority,
@@ -188,8 +288,13 @@ export default function Tasks() {
       console.error('Task update failed:', error);
       return;
     }
+
+    // Trigger crew briefing if agent changed to a new one
+    if (editAgent && editAgent !== previousAgent) {
+      triggerCrewBriefing(editAgent, editTask.title, editTask.description, editCategory, editPriority);
+    }
+
     setEditTask(null);
-    // Force refresh to show changes immediately
     fetchData();
   }
 
@@ -338,28 +443,42 @@ export default function Tasks() {
     </div>
   );
 
+  const ACTION_TYPE_META: Record<string, { icon: typeof Activity; color: string; label: string }> = {
+    task_briefing: { icon: Target, color: '#7C5CFC', label: 'BRIEFING' },
+    task_status_change: { icon: ArrowRight, color: '#1D9E75', label: 'STATUS' },
+    transmission: { icon: MessageCircle, color: '#4facfe', label: 'TRANSMISSION' },
+    glitch_detected: { icon: Zap, color: '#D95555', label: 'ANOMALY' },
+    glitch_resolved: { icon: CheckSquare, color: '#1D9E75', label: 'RESOLVED' },
+    synthesis: { icon: Activity, color: '#C9A84C', label: 'SYNTHESIS' },
+    activity: { icon: Activity, color: '#C9A84C', label: 'ACTIVITY' },
+  };
+
   const renderAgentActions = () => (
     <div className="actions-list">
-      {actions.map((action, idx) => (
-        <div key={action.id} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
-          <div className="action-icon-wrap">
-            <Activity size={18} />
-          </div>
-          <div className="action-body">
-            <div className="action-header">
-              <span className="action-type">{action.event_type}</span>
-              <span className="action-time">{new Date(action.created_at).toLocaleString()}</span>
+      {actions.map((action, idx) => {
+        const meta = ACTION_TYPE_META[action.event_type] || ACTION_TYPE_META.activity;
+        const IconComponent = meta.icon;
+        return (
+          <div key={`${action.id}-${idx}`} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
+            <div className="action-icon-wrap" style={{ background: `${meta.color}15`, color: meta.color, borderColor: `${meta.color}30` }}>
+              <IconComponent size={18} />
             </div>
-            {action.title && <p className="action-title">{action.title}</p>}
-            <p className="action-description">{action.description}</p>
+            <div className="action-body">
+              <div className="action-header">
+                <span className="action-type" style={{ color: meta.color }}>{meta.label}</span>
+                <span className="action-time">{new Date(action.created_at).toLocaleString()}</span>
+              </div>
+              {action.title && <p className="action-title">{action.title}</p>}
+              <p className="action-description">{action.description}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {actions.length === 0 && (
         <div className="empty-state">
           <Bot size={48} className="empty-icon" />
           <p>NO CREW ACTIONS LOGGED YET</p>
-          <p style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>Agent activity will appear here as the crew executes.</p>
+          <p style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>Create a task and assign a crew member — they&apos;ll brief you automatically.</p>
         </div>
       )}
     </div>
