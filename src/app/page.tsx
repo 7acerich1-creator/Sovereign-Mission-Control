@@ -27,7 +27,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-/* ──────────────────── TYPES ──────────────────── */
+/* -------------------- TYPES -------------------- */
 
 type MissionMetrics = {
   liberation_count: number;
@@ -83,7 +83,7 @@ type GlitchEntry = {
   detected_at: string;
 };
 
-/* ──────────────── AGENT CONFIG ──────────────── */
+/* ---------------- AGENT CONFIG ---------------- */
 
 const MAVEN_CREW = [
   { name: "Yuki", role: "Creative & Content", color: "#fddb92", avatar: "/crew/yuki.png" },
@@ -94,7 +94,7 @@ const MAVEN_CREW = [
   { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a", avatar: "/crew/vector.png" },
 ];
 
-/* ──────────────── HELPERS ──────────────── */
+/* ---------------- HELPERS ---------------- */
 
 function daysUntil(target: string): number {
   return Math.max(
@@ -119,7 +119,7 @@ function isOnline(lastSeen: string): boolean {
   return Date.now() - new Date(lastSeen).getTime() < 24 * 60 * 60 * 1000;
 }
 
-/* ──────────────── ORB CANVAS ──────────────── */
+/* ---------------- ORB CANVAS ---------------- */
 
 const ORB_COLORS = [
   { r: 201, g: 168, b: 76 },   // gold
@@ -212,9 +212,9 @@ function useOrbCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>, coun
   }, [canvasRef, count, draw]);
 }
 
-/* ══════════════════════════════════════════════════
+/* ==================================================
    CEO MISSION CONTROL — SINGLE PANE OF GLASS
-   ══════════════════════════════════════════════════ */
+   ================================================== */
 
 export default function MissionControl() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -236,7 +236,7 @@ export default function MissionControl() {
   const chatFeedRef = useRef<HTMLDivElement>(null);
   const CHAT_PAGE_SIZE = 50;
 
-  /* ── CHAT: fetch history when agent selected ── */
+  /* -- CHAT: fetch history when agent selected -- */
   useEffect(() => {
     if (!selectedAgent) { setChatMessages([]); setHasMoreMessages(false); return; }
     const agentKey = selectedAgent.toLowerCase();
@@ -371,7 +371,7 @@ export default function MissionControl() {
     setIsSending(false);
   }
 
-  /* ── FETCH FUNCTIONS ── */
+  /* -- FETCH FUNCTIONS -- */
 
   async function fetchMetrics() {
     const { data } = await supabase
@@ -443,7 +443,7 @@ export default function MissionControl() {
     if (data) setGlitches(data);
   }
 
-  /* ── INITIAL FETCH + REALTIME ── */
+  /* -- INITIAL FETCH + REALTIME -- */
 
   useEffect(() => {
     fetchMetrics();
@@ -467,7 +467,7 @@ export default function MissionControl() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  /* ── DERIVED STATE ── */
+  /* -- DERIVED STATE -- */
 
   const daysRemaining = daysUntil("2027-01-01");
   const revenuePercent = Math.min((totalRevenue / 1200000) * 100, 100);
@@ -494,7 +494,7 @@ export default function MissionControl() {
     });
   }, [agentHistory, commandQueue]);
 
-  /* ══════════════════ RENDER ══════════════════ */
+  /* ================== RENDER ================== */
 
   return (
     <div className="fade-in ceo-dashboard" style={{ position: "relative" }}>
@@ -510,7 +510,7 @@ export default function MissionControl() {
           zIndex: 0,
         }}
       />
-      {/* ═══════ SECTION 1 — MISSION STATUS BAR ═══════ */}
+      {/* ======= SECTION 1 — MISSION STATUS BAR ======= */}
       <header className="mission-status-bar">
         <div className="msb-header">
           <div>
@@ -548,7 +548,7 @@ export default function MissionControl() {
         </div>
       </header>
 
-      {/* ═══════ SECTION 2 — MAVEN CREW STATUS ═══════ */}
+      {/* ======= SECTION 2 — MAVEN CREW STATUS ======= */}
       <section className="dashboard-section">
         <div className="section-header-row">
           <h2 className="section-heading">MAVEN CREW STATUS</h2>
@@ -732,7 +732,7 @@ export default function MissionControl() {
         </div>
       </section>
 
-      {/* ═══════ SECTION 3 — ACTIVE GOALS & TASKS ═══════ */}
+      {/* ======= SECTION 3 — ACTIVE GOALS & TASKS ======= */}
       <section className="dashboard-section">
         <div className="section-header-row">
           <h2 className="section-heading">ACTIVE GOALS & TASKS</h2>
@@ -763,9 +763,9 @@ export default function MissionControl() {
         </div>
       </section>
 
-      {/* ═══════ TWO-COLUMN LAYOUT ═══════ */}
+      {/* ======= TWO-COLUMN LAYOUT ======= */}
       <div className="two-col-layout">
-        {/* ═══════ SECTION 4 — CONTENT PIPELINE ═══════ */}
+        {/* ======= SECTION 4 — CONTENT PIPELINE ======= */}
         <section className="dashboard-section">
           <h2 className="section-heading">CONTENT PIPELINE</h2>
 
@@ -811,9 +811,9 @@ export default function MissionControl() {
           </div>
         </section>
 
-        {/* ═══════ RIGHT COLUMN ═══════ */}
+        {/* ======= RIGHT COLUMN ======= */}
         <div className="right-stack">
-          {/* ═══════ SECTION 5 — RECENT REVENUE ═══════ */}
+          {/* ======= SECTION 5 — RECENT REVENUE ======= */}
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">RECENT REVENUE</h2>
@@ -848,7 +848,7 @@ export default function MissionControl() {
             </div>
           </section>
 
-          {/* ═══════ SECTION 6 — GLITCH LOG ═══════ */}
+          {/* ======= SECTION 6 — GLITCH LOG ======= */}
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">GLITCH LOG</h2>
@@ -879,7 +879,7 @@ export default function MissionControl() {
         </div>
       </div>
 
-      {/* ═══════ STYLES ═══════ */}
+      {/* ======= STYLES ======= */}
       <style jsx>{`
         .ceo-dashboard {
           display: flex;
@@ -887,7 +887,7 @@ export default function MissionControl() {
           gap: 40px;
         }
 
-        /* ── SECTION 1: MISSION STATUS BAR ── */
+        /* -- SECTION 1: MISSION STATUS BAR -- */
         .mission-status-bar {
           background: linear-gradient(135deg, rgba(201, 168, 76, 0.04), rgba(29, 158, 117, 0.04));
           border: 1px solid rgba(201, 168, 76, 0.15);
@@ -1007,7 +1007,7 @@ export default function MissionControl() {
           align-self: flex-end;
         }
 
-        /* ── SECTION SHARED ── */
+        /* -- SECTION SHARED -- */
         .dashboard-section {
           display: flex;
           flex-direction: column;
@@ -1042,7 +1042,7 @@ export default function MissionControl() {
           color: var(--color-text-muted);
         }
 
-        /* ── SECTION 2: CREW GRID ── */
+        /* -- SECTION 2: CREW GRID -- */
         .section-link {
           font-size: 10px;
           font-family: var(--font-mono);
@@ -1145,7 +1145,7 @@ export default function MissionControl() {
           transform: scale(0.97);
         }
 
-        /* ── HERO PANEL — full agent command bridge ── */
+        /* -- HERO PANEL — full agent command bridge -- */
         .crew-hero-panel {
           background: linear-gradient(135deg, rgba(14, 14, 14, 0.98), rgba(20, 18, 30, 0.95));
           border: 1px solid var(--agent-color);
@@ -1251,7 +1251,7 @@ export default function MissionControl() {
           margin: 0;
         }
 
-        /* ── ACTIVITY FEED ── */
+        /* -- ACTIVITY FEED -- */
         .hero-activity {
           margin-bottom: 20px;
         }
@@ -1423,7 +1423,7 @@ export default function MissionControl() {
           grid-column: 2;
         }
 
-        /* ── MESSAGE BAR ── */
+        /* -- MESSAGE BAR -- */
         .hero-message-bar {
           display: flex;
           align-items: center;
@@ -1571,7 +1571,7 @@ export default function MissionControl() {
           border-radius: 8px;
         }
 
-        /* ── SECTION 3: TASKS TABLE ── */
+        /* -- SECTION 3: TASKS TABLE -- */
         .table-card {
           padding: 0 !important;
           overflow: hidden;
@@ -1646,7 +1646,7 @@ export default function MissionControl() {
           letter-spacing: 0.05em;
         }
 
-        /* ── TWO COLUMN LAYOUT ── */
+        /* -- TWO COLUMN LAYOUT -- */
         .two-col-layout {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -1659,7 +1659,7 @@ export default function MissionControl() {
           gap: 32px;
         }
 
-        /* ── SECTION 4: CONTENT PIPELINE ── */
+        /* -- SECTION 4: CONTENT PIPELINE -- */
         .pipeline-sub {
           background: var(--color-bg-surface);
           border: 1px solid var(--border-color);
@@ -1744,7 +1744,7 @@ export default function MissionControl() {
           text-align: center;
         }
 
-        /* ── SECTION 5: REVENUE LIST ── */
+        /* -- SECTION 5: REVENUE LIST -- */
         .revenue-list-card {
           padding: 0 !important;
           overflow: hidden;
@@ -1820,7 +1820,7 @@ export default function MissionControl() {
           font-size: 16px;
         }
 
-        /* ── SECTION 6: GLITCH LOG ── */
+        /* -- SECTION 6: GLITCH LOG -- */
         .glitch-list-card {
           padding: 0 !important;
           overflow: hidden;
@@ -1883,7 +1883,7 @@ export default function MissionControl() {
           color: var(--color-text-muted);
         }
 
-        /* ── RESPONSIVE ── */
+        /* -- RESPONSIVE -- */
         @media (max-width: 1200px) {
           .crew-grid { grid-template-columns: repeat(2, 1fr); }
           .two-col-layout { grid-template-columns: 1fr; }
@@ -1896,6 +1896,4 @@ export default function MissionControl() {
           .countdown-number { font-size: 32px; }
         }
       `}</style>
-    </div>
-  );
-}
+    </di

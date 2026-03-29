@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-/* ══════════════════════════════════════════════════════════
+/* ==========================================================
    CHAT API — Phase 2: AI-Powered Agent Communication
 
    POST /api/chat  — send message, get AI response
    GET  /api/chat  — fetch history with pagination
    DELETE /api/chat — delete message or clear conversation
-   ══════════════════════════════════════════════════════════ */
+   ========================================================== */
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 
@@ -250,20 +250,3 @@ export async function DELETE(req: Request) {
         .delete()
         .eq('agent_name', body.agent_name.toLowerCase());
       if (error) throw error;
-      return NextResponse.json({ success: true, cleared: body.agent_name });
-    }
-    if (body.id) {
-      const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('id', body.id);
-      if (error) throw error;
-      return NextResponse.json({ success: true, deleted: body.id });
-    }
-
-    return NextResponse.json({ error: 'Missing id or agent_name+clear_all' }, { status: 400 });
-  } catch (error: any) {
-    console.error('Chat DELETE Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}

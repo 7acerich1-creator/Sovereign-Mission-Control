@@ -6,10 +6,10 @@ import {
   ExternalLink, ArrowRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-/* ══════════════════════════════════════════════════════════
+/* ==========================================================
    PRODUCTS PAGE — THE SOVEREIGN FUNNEL ARCHITECTURE
    All 8 tiers of the liberation pipeline, wired to live URLs
-   ══════════════════════════════════════════════════════════ */
+   ========================================================== */
 
 type FunnelTier = {
   tier: number;
@@ -350,7 +350,7 @@ export default function ProductsPage() {
       </section>
 
       <style jsx>{`
-        /* ═══ FUNNEL FLOW ═══ */
+        /* === FUNNEL FLOW === */
         .funnel-flow {
           display: flex;
           flex-direction: column;
@@ -499,7 +499,7 @@ export default function ProductsPage() {
           margin-top: 4px;
         }
 
-        /* ═══ EXPANDED DETAIL ═══ */
+        /* === EXPANDED DETAIL === */
         .tier-detail {
           margin-top: 20px;
           padding-top: 20px;
@@ -591,7 +591,7 @@ export default function ProductsPage() {
           border-color: var(--tier-border);
         }
 
-        /* ═══ FLOW CONNECTOR ═══ */
+        /* === FLOW CONNECTOR === */
         .flow-connector {
           display: flex;
           flex-direction: column;
@@ -611,7 +611,7 @@ export default function ProductsPage() {
           line-height: 1;
         }
 
-        /* ═══ REVENUE SUMMARY ═══ */
+        /* === REVENUE SUMMARY === */
         .rev-summary {
           margin-top: 48px;
           padding-top: 32px;

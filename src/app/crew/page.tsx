@@ -5,10 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Wifi, WifiOff, Zap } from "lucide-react";
 
-/* ══════════════════════════════════════════════════════
+/* ======================================================
    MAVEN CREW — THE SOVEREIGN HIVE MIND
    Full gallery with hover-expand portraits + group shot
-   ══════════════════════════════════════════════════════ */
+   ====================================================== */
 
 type CrewMember = {
   name: string;
@@ -105,7 +105,7 @@ export default function CrewPage() {
         </div>
       </header>
 
-      {/* ═══════ GROUP SHOT — HERO ═══════ */}
+      {/* ======= GROUP SHOT — HERO ======= */}
       <section style={{ marginBottom: 40, position: "relative" }}>
         <div style={{
           position: "relative",
@@ -148,7 +148,7 @@ export default function CrewPage() {
         </div>
       </section>
 
-      {/* ═══════ AGENT GALLERY ═══════ */}
+      {/* ======= AGENT GALLERY ======= */}
       <section>
         <div style={{
           display: "grid",
