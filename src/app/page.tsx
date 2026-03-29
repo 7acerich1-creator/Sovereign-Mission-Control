@@ -1896,4 +1896,6 @@ export default function MissionControl() {
           .countdown-number { font-size: 32px; }
         }
       `}</style>
-    </di
+    </div>
+  );
+}

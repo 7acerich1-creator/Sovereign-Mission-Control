@@ -250,3 +250,21 @@ export async function DELETE(req: Request) {
         .delete()
         .eq('agent_name', body.agent_name.toLowerCase());
       if (error) throw error;
+      return NextResponse.json({ success: true, cleared: body.agent_name });
+    }
+
+    if (body.id) {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', body.id);
+      if (error) throw error;
+      return NextResponse.json({ success: true, deleted: body.id });
+    }
+
+    return NextResponse.json({ error: 'Missing id or clear_all + agent_name' }, { status: 400 });
+  } catch (error: any) {
+    console.error('Chat DELETE Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
