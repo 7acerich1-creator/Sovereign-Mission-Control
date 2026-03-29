@@ -24,7 +24,6 @@ import {
   X,
   MessageCircle,
   Trash2,
-  Trash2,
 } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
