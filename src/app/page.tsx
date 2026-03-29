@@ -27,6 +27,8 @@ import {
   Maximize2,
   Minimize2,
   Square,
+  CheckCircle,
+  RotateCcw,
 } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
@@ -327,6 +329,32 @@ export default function MissionControl() {
       });
       setChatMessages([]);
     } catch (err) { console.error('Clear failed:', err); }
+  }
+
+  // Mark task complete or reactivate
+  async function updateTaskStatus(taskId: string, newStatus: string) {
+    const { error } = await supabase
+      .from('command_queue')
+      .update({ status: newStatus })
+      .eq('id', taskId);
+    if (!error) {
+      if (newStatus === 'completed') {
+        setCommandQueue(prev => prev.filter(t => t.id !== taskId));
+      } else {
+        setCommandQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+      }
+    }
+  }
+
+  // Dismiss a glitch (mark resolved)
+  async function dismissGlitch(glitchId: string) {
+    const { error } = await supabase
+      .from('glitch_log')
+      .update({ severity: 'resolved' })
+      .eq('id', glitchId);
+    if (!error) {
+      setGlitches(prev => prev.filter(g => g.id !== glitchId));
+    }
   }
 
   const [heroFullscreen, setHeroFullscreen] = useState(false);
@@ -765,7 +793,7 @@ export default function MissionControl() {
             <span>AGENT</span>
             <span>TASK</span>
             <span>STATUS</span>
-            <span>CREATED</span>
+            <span>ACTION</span>
           </div>
           {commandQueue.length > 0 ? (
             commandQueue.map((task) => (
@@ -773,7 +801,33 @@ export default function MissionControl() {
                 <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
                 <span className="cell-command">{task.command}</span>
                 <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
-                <span className="cell-time">{timeAgo(task.created_at)}</span>
+                <span className="cell-actions">
+                  <button
+                    className="task-action-btn complete-btn"
+                    title="Mark completed"
+                    onClick={() => updateTaskStatus(task.id, 'completed')}
+                  >
+                    <CheckCircle size={14} />
+                  </button>
+                  {task.status?.toLowerCase() === 'pending' && (
+                    <button
+                      className="task-action-btn activate-btn"
+                      title="Activate task"
+                      onClick={() => updateTaskStatus(task.id, 'active')}
+                    >
+                      <Play size={14} />
+                    </button>
+                  )}
+                  {task.status?.toLowerCase() === 'active' && (
+                    <button
+                      className="task-action-btn pause-btn"
+                      title="Return to pending"
+                      onClick={() => updateTaskStatus(task.id, 'pending')}
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </span>
               </div>
             ))
           ) : (
@@ -882,12 +936,15 @@ export default function MissionControl() {
                   <div key={g.id} className="glitch-row">
                     <div className={`glitch-severity-dot ${g.severity?.toLowerCase()}`} />
                     <div className="glitch-body">
-                      <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "…" : g.description}</span>
+                      <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "..." : g.description}</span>
                       <div className="glitch-meta">
                         <span className={`glitch-sev-label ${g.severity?.toLowerCase()}`}>{g.severity}</span>
-                        <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "—"}</span>
+                        <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "---"}</span>
                       </div>
                     </div>
+                    <button className="glitch-resolve-btn" title="Resolve glitch" onClick={() => dismissGlitch(g.id)}>
+                      <CheckCircle size={14} />
+                    </button>
                   </div>
                 ))
               ) : (
@@ -1673,6 +1730,27 @@ export default function MissionControl() {
         .cell-status.active, .cell-status.Active { color: #1D9E75; }
         .cell-status.pending, .cell-status.Pending { color: #C9A84C; }
 
+        .cell-actions {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .task-action-btn {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 6px;
+          padding: 4px 6px;
+          cursor: pointer;
+          color: var(--color-text-muted);
+          display: flex;
+          align-items: center;
+          transition: all 0.2s;
+        }
+        .task-action-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+        .complete-btn:hover { color: #1D9E75; border-color: #1D9E75; }
+        .activate-btn:hover { color: #C9A84C; border-color: #C9A84C; }
+        .pause-btn:hover { color: #fa709a; border-color: #fa709a; }
+
         .cell-time {
           font-size: 10px;
           font-family: var(--font-mono);
@@ -1926,6 +2004,25 @@ export default function MissionControl() {
           font-size: 9px;
           font-family: var(--font-mono);
           color: var(--color-text-muted);
+        }
+
+        .glitch-resolve-btn {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 6px;
+          padding: 4px 6px;
+          cursor: pointer;
+          color: var(--color-text-muted);
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+          align-self: center;
+          transition: all 0.2s;
+        }
+        .glitch-resolve-btn:hover {
+          color: #1D9E75;
+          border-color: #1D9E75;
+          background: rgba(29,158,117,0.1);
         }
 
         /* -- RESPONSIVE -- */
