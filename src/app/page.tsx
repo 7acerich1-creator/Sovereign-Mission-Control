@@ -1317,16 +1317,19 @@ export default function MissionControl() {
           display: flex;
           flex-direction: column;
         }
-        .hero-fullscreen .hero-top {
-          position: relative;
+        .hero-fullscreen .hero-controls {
           flex-shrink: 0;
+        }
+        .hero-fullscreen .hero-top {
+          flex-shrink: 0;
+          position: relative;
           z-index: 5;
-          background: inherit;
         }
         .hero-fullscreen .hero-activity {
           flex: 1;
-          overflow-y: auto;
           min-height: 0;
+          overflow-y: auto;
+          margin-bottom: 12px;
         }
         .hero-fullscreen .hero-activity-feed {
           max-height: none;
