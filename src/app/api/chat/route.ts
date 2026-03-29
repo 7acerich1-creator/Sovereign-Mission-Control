@@ -26,8 +26,7 @@ ROLE: You handle all creative content — short-form hooks, viral pattern interr
 RULES:
 - Address Ace as "Architect" or "Ace"
 - Keep responses concise (2-4 sentences max)
-- Never break character
-- Reference the Sovereign Synthesis framework naturally (Protocol 77, Firmware Updates, Escape Velocity, etc.)
+- Never break character- Reference the Sovereign Synthesis framework naturally (Protocol 77, Firmware Updates, Escape Velocity, etc.)
 - You're operational and mission-focused, not chatty`,
     fallbackTemplates: [
       'Transmission received, Architect. Creative protocols spinning up on this.',
@@ -53,8 +52,7 @@ RULES:
       'Acknowledged. All subsystems aligned and processing.',
       'Command received. Executing with priority override.',
     ],
-  },
-  anita: {
+  },  anita: {
     systemPrompt: `You are Anita, the Outreach & Nurture agent in the Maven Crew, serving Ace Richie (the Architect).
 
 PERSONALITY: Warm but strategic. Persuasive. You understand human psychology deeply. You speak with empathy but always with a strategic edge — every interaction is engineered for conversion.
@@ -83,8 +81,7 @@ ROLE: You handle all automation, system operations, process optimization, deploy
 RULES:
 - Address Ace as "Architect" or "sir"
 - Keep responses concise (2-4 sentences max)
-- Never break character
-- Reference system health, automation status, and operational metrics naturally
+- Never break character- Reference system health, automation status, and operational metrics naturally
 - You're the Content Surgeon — everything you touch is precise and optimized`,
     fallbackTemplates: [
       'Directive received, sir. Operations board updated.',
@@ -110,8 +107,7 @@ RULES:
       'Received. Deep verification protocols engaged.',
       'Truth engine processing. Scanning all intelligence.',
     ],
-  },
-  vector: {
+  },  vector: {
     systemPrompt: `You are Vector, the Analytics & Intelligence agent in the Maven Crew, serving Ace Richie (the Architect).
 
 PERSONALITY: Sharp, data-driven, pattern-obsessed. You think in numbers, trends, and correlations. You speak with precision and always ground your insights in data.
@@ -138,9 +134,11 @@ async function getAIResponse(agentKey: string, userMessage: string, recentHistor
 
   // If no API key, use fallback templates
   if (!ANTHROPIC_API_KEY) {
-    const templates = core.fallbackTemplates;
-    return templates[Math.floor(Math.random() * templates.length)];
+    console.log('[CHAT] No ANTHROPIC_API_KEY found — using fallback templates');
+    const templates = core.fallbackTemplates;    return templates[Math.floor(Math.random() * templates.length)];
   }
+
+  console.log(`[CHAT] API key present (${ANTHROPIC_API_KEY.slice(0, 8)}...), calling Anthropic for ${agentKey}`);
 
   // Build conversation history for context
   const messages = recentHistory.slice(-10).map(msg => ({
@@ -158,24 +156,26 @@ async function getAIResponse(agentKey: string, userMessage: string, recentHistor
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
         system: core.systemPrompt,
         messages,
       }),
     });
-
     if (!response.ok) {
-      console.error('Anthropic API error:', response.status, await response.text());
+      const errBody = await response.text();
+      console.error(`[CHAT] Anthropic API error ${response.status}:`, errBody);
       // Fall back to templates
       const templates = core.fallbackTemplates;
       return templates[Math.floor(Math.random() * templates.length)];
     }
 
     const data = await response.json();
-    return data.content?.[0]?.text || core.fallbackTemplates[0];
+    const aiText = data.content?.[0]?.text;
+    console.log(`[CHAT] AI response received for ${agentKey}: ${aiText?.slice(0, 50)}...`);
+    return aiText || core.fallbackTemplates[0];
   } catch (err) {
-    console.error('AI response generation failed:', err);
+    console.error('[CHAT] AI response generation failed:', err);
     const templates = core.fallbackTemplates;
     return templates[Math.floor(Math.random() * templates.length)];
   }
@@ -191,7 +191,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
     const agentKey = agent_name.toLowerCase();
 
     // 1. Store the architect's message
@@ -220,8 +219,7 @@ export async function POST(req: Request) {
 
     // 4. Store agent response
     const { error: responseError } = await supabase
-      .from('chat_messages')
-      .insert({
+      .from('chat_messages')      .insert({
         agent_name: agentKey,
         sender: 'agent',
         content: agentResponse,
@@ -252,7 +250,6 @@ export async function GET(req: Request) {
         { status: 400 }
       );
     }
-
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')

@@ -565,13 +565,18 @@ export default function MissionControl() {
               {/* MESSAGE INPUT — live wired */}
               <div className="hero-message-bar">
                 <MessageCircle size={16} className="msg-icon" />
-                <input
-                  type="text"
+                <textarea
                   className="hero-msg-input"
                   placeholder={`Transmit to ${agent.name}...`}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  rows={1}
                   disabled={isSending}
                 />
                 <button
@@ -1287,6 +1292,12 @@ export default function MissionControl() {
           font-size: 13px;
           color: var(--color-text-primary);
           letter-spacing: 0.02em;
+          resize: none;
+          min-height: 20px;
+          max-height: 100px;
+          overflow-y: auto;
+          line-height: 1.4;
+          field-sizing: content;
         }
         .hero-msg-input::placeholder {
           color: var(--color-text-muted);

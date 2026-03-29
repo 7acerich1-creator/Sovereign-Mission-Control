@@ -25,8 +25,7 @@ const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similar
     voiceId: 'pFZP5JQG7iQjIQuC4Bku',  // "Lily" — authoritative, polished female
     stability: 0.55,
     similarity: 0.85,
-  },
-  anita: {
+  },  anita: {
     voiceId: 'XB0fDUnXU5powFXDhCwa',  // "Charlotte" — warm, strategic female
     stability: 0.50,
     similarity: 0.80,
@@ -53,7 +52,6 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || process.env.elevenl
 export async function POST(req: Request) {
   try {
     const { agent_name, text } = await req.json();
-
     if (!agent_name || !text) {
       return NextResponse.json(
         { error: 'Missing agent_name or text' },
@@ -62,11 +60,14 @@ export async function POST(req: Request) {
     }
 
     if (!ELEVENLABS_API_KEY) {
+      console.error('[TTS] No ELEVENLABS_API_KEY found. Checked ELEVENLABS_API_KEY and elevenlabs env vars.');
       return NextResponse.json(
         { error: 'ELEVENLABS_API_KEY not configured. Add it to your Vercel environment variables.' },
         { status: 500 }
       );
     }
+
+    console.log(`[TTS] API key present (${ELEVENLABS_API_KEY.slice(0, 6)}...), processing for ${agent_name}`);
 
     const agentKey = agent_name.toLowerCase();
     const voice = AGENT_VOICES[agentKey];
@@ -79,8 +80,7 @@ export async function POST(req: Request) {
     }
 
     // Call ElevenLabs TTS API
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voice.voiceId}`,
+    const response = await fetch(      `https://api.elevenlabs.io/v1/text-to-speech/${voice.voiceId}`,
       {
         method: 'POST',
         headers: {
@@ -102,13 +102,14 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs Error:', errorText);
+      console.error(`[TTS] ElevenLabs API error ${response.status}:`, errorText);
       return NextResponse.json(
-        { error: `ElevenLabs API error: ${response.status}` },
+        { error: `ElevenLabs API error: ${response.status} — ${errorText}` },
         { status: response.status }
       );
     }
 
+    console.log(`[TTS] Audio generated successfully for ${agentKey}`);
     // Stream audio back to client
     const audioBuffer = await response.arrayBuffer();
 
