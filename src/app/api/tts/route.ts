@@ -17,32 +17,49 @@ import { NextResponse } from 'next/server';
 // Update these with your preferred voices
 const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similarity: number }> = {
   yuki: {
-    voiceId: '21m00Tcm4TlvDq8ikWAM',  // "Rachel" — guaranteed-available premade voice. Calm, clear, natural.
-    stability: 0.30,       // low = expressive and dynamic
-    similarity: 0.75,      // balanced = natural delivery
+    // Yuki — Creative & Content. Anime-inspired, blue-haired, vibrant, young energy.
+    // "Lily" — raspy female narration voice. Edgy, textured, expressive.
+    // Matches Yuki's punk-creative aesthetic and fiery personality.
+    voiceId: 'pFZP5JQG7iQjIQuC4Bku',
+    stability: 0.25,       // very low = maximum expressiveness, attitude, energy
+    similarity: 0.72,      // loose = dynamic, punchy, character-driven
   },
   sapphire: {
-    voiceId: 'EXAVITQu4vr4xnSDxMaL',  // "Sarah" — soft American female. Conversational, clean, direct.
-    stability: 0.48,       // balanced = natural conversation flow
-    similarity: 0.85,      // crisp but not stiff
+    // Sapphire — Orchestration lead. Calm authority, strategic mind, the conductor.
+    // "Sarah" — soft American female. Clean, direct, conversational.
+    // Perfect for the AI orchestrator who keeps everything running.
+    voiceId: 'EXAVITQu4vr4xnSDxMaL',
+    stability: 0.48,
+    similarity: 0.85,
   },
   anita: {
-    voiceId: 'XrExE9yKIg1WjnnlVkGX',  // "Matilda" — warm female. Kept, but tuned colder/sharper.
-    stability: 0.62,       // raised = more controlled, less warmth, more edge
-    similarity: 0.92,      // raised = sharper, more precise articulation
+    // Anita — Outreach & Nurture. Warm but sharp, professional closer.
+    // "Serena" — pleasant, interactive female. Polished and engaging.
+    // Matches Anita's nurture-to-close energy — warm on entry, precise on delivery.
+    voiceId: 'pMsXgVXv3BLzUgSXRplE',
+    stability: 0.55,       // balanced = warm but controlled
+    similarity: 0.88,      // precise articulation for outreach scripts
   },
   alfred: {
-    voiceId: 'onwK4e9ZLuTAKqWW03F9',  // "Daniel" — deep, natural male. Human warmth with authority.
-    stability: 0.58,       // balanced = authoritative without robotic
+    // Alfred — Ops & Automation. Reliable, military precision, the backbone.
+    // "Daniel" — deep, authoritative male. Human warmth with command presence.
+    // Perfect for the operations chief who keeps the machine running.
+    voiceId: 'onwK4e9ZLuTAKqWW03F9',
+    stability: 0.58,
     similarity: 0.85,
   },
   veritas: {
-    voiceId: 'pqHfZKP75CvOlQylNhV4',  // "Bill" — deep, powerful documentary voice. Maximum gravitas.
-    stability: 0.75,       // high = deliberate, weighty, authoritative
-    similarity: 0.88,      // precise but natural gravitas
+    // Veritas — Research & Truth. Ancient wisdom, deep thinker, oracle energy.
+    // "Brian" — deep male narration. Rich, resonant, documentary gravitas.
+    // Deeper and more atmospheric than Bill. Matches the philosopher-sage.
+    voiceId: 'nPczCjzI2devNBz1zQrb',
+    stability: 0.78,       // high = deliberate, measured, weighty
+    similarity: 0.90,      // precise = every word lands with intent
   },
   vector: {
-    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',  // "Liam" — perfect as-is. Sharp, data-driven.
+    // Vector — Analytics & Intel. Sharp, calculated, data-driven operative.
+    // "Liam" — clean, precise male. Perfect for the numbers agent.
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',
     stability: 0.45,
     similarity: 0.88,
   },

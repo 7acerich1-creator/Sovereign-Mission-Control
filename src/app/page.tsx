@@ -1328,6 +1328,11 @@ export default function MissionControl() {
           align-items: flex-start;
           gap: 28px;
           margin-bottom: 28px;
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          background: inherit;
+          padding-bottom: 16px;
         }
 
         .hero-avatar-wrap {

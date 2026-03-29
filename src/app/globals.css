@@ -162,20 +162,40 @@
   background: rgba(0, 0, 0, 0.02);
 }
 
-[data-theme="light"] .hero-msg-bubble {
+[data-theme="light"] .hero-feed-item {
   background: rgba(0, 0, 0, 0.03);
   border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .hero-feed-item.msg-architect {
+  background: rgba(201, 168, 76, 0.06);
+}
+
+[data-theme="light"] .hero-feed-item.msg-agent {
+  background: rgba(124, 92, 252, 0.04);
+}
+
+[data-theme="light"] .feed-content {
   color: var(--color-text-primary);
 }
 
-[data-theme="light"] .hero-msg-architect .hero-msg-bubble {
-  background: rgba(124, 92, 252, 0.08);
+[data-theme="light"] .feed-sender {
+  color: var(--color-text-secondary);
 }
 
-[data-theme="light"] .hero-input {
+[data-theme="light"] .hero-msg-input {
+  color: var(--color-text-primary);
+}
+
+[data-theme="light"] .hero-message-bar {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .crew-hero-panel {
   background: #FFFFFF;
-  color: var(--color-text-primary);
   border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .hero-control-btn {

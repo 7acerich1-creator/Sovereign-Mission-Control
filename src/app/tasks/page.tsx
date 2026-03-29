@@ -31,7 +31,7 @@ type Task = {
   description?: string;
   status: 'To Do' | 'In Progress' | 'Complete';
   priority: 'High' | 'Medium' | 'Low';
-  assigned_agent?: string;
+  assigned_to?: string;
   category?: string;
   due_date?: string;
   created_at?: string;
@@ -149,7 +149,7 @@ export default function Tasks() {
       description: newDesc.trim() || null,
       status: 'To Do',
       priority: newPriority,
-      assigned_agent: assignedAgent,
+      assigned_to: assignedAgent,
       category: newCategory,
       due_date: newDueDate || null,
     });
@@ -172,7 +172,7 @@ export default function Tasks() {
 
   function openEdit(task: Task) {
     setEditTask(task);
-    setEditAgent(task.assigned_agent || '');
+    setEditAgent(task.assigned_to || '');
     setEditPriority(task.priority);
     setEditCategory(task.category || 'Revenue');
   }
@@ -180,7 +180,7 @@ export default function Tasks() {
   async function saveEdit() {
     if (!editTask) return;
     const { error } = await supabase.from('tasks').update({
-      assigned_agent: editAgent || null,
+      assigned_to: editAgent || null,
       priority: editPriority,
       category: editCategory,
     }).eq('id', editTask.id);
@@ -195,7 +195,7 @@ export default function Tasks() {
 
   async function sendTaskChat() {
     if (!chatTask || !chatInput.trim() || chatSending) return;
-    const agent = chatTask.assigned_agent || 'sapphire';
+    const agent = chatTask.assigned_to || 'sapphire';
     setChatSending(true);
     setChatResponse('');
     try {
@@ -244,8 +244,8 @@ export default function Tasks() {
             </div>
             <div className="column-content">
               {colTasks.map(task => {
-                const agentColor = task.assigned_agent ? AGENT_COLORS[task.assigned_agent.toLowerCase()] || '#7C5CFC' : '#7C5CFC';
-                const agentInfo = CREW_AGENTS.find(a => a.name === task.assigned_agent);
+                const agentColor = task.assigned_to ? AGENT_COLORS[task.assigned_to.toLowerCase()] || '#7C5CFC' : '#7C5CFC';
+                const agentInfo = CREW_AGENTS.find(a => a.name === task.assigned_to);
                 return (
                   <div key={task.id} className="task-card fade-in">
                     <div className="task-priority-strip" style={{
@@ -273,20 +273,20 @@ export default function Tasks() {
                       {task.description && <p className="task-desc">{task.description}</p>}
 
                       {/* Agent Assignment Block */}
-                      {task.assigned_agent ? (
+                      {task.assigned_to ? (
                         <div className="task-agent-block" style={{ borderColor: `${agentColor}30` }}>
                           <div className="task-agent-avatar" style={{ background: `${agentColor}20`, color: agentColor }}>
                             <UserCircle size={14} />
                           </div>
                           <div className="task-agent-info">
-                            <span className="task-agent-name" style={{ color: agentColor }}>{task.assigned_agent}</span>
+                            <span className="task-agent-name" style={{ color: agentColor }}>{task.assigned_to}</span>
                             <span className="task-agent-role">{agentInfo?.role || ''}</span>
                           </div>
                           <button
                             className="task-chat-btn"
                             style={{ color: agentColor, borderColor: `${agentColor}30` }}
                             onClick={() => { setChatTask(task); setChatResponse(''); }}
-                            title={`Message ${task.assigned_agent}`}
+                            title={`Message ${task.assigned_to}`}
                           >
                             <MessageCircle size={12} />
                           </button>
@@ -368,7 +368,7 @@ export default function Tasks() {
   // Task chat panel
   const renderTaskChat = () => {
     if (!chatTask) return null;
-    const agent = chatTask.assigned_agent || 'Sapphire';
+    const agent = chatTask.assigned_to || 'Sapphire';
     const agentColor = AGENT_COLORS[agent.toLowerCase()] || '#7C5CFC';
     return (
       <div className="task-chat-overlay fade-in">
