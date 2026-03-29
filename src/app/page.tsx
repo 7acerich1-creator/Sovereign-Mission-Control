@@ -1268,6 +1268,10 @@ export default function MissionControl() {
           box-shadow: 0 0 60px color-mix(in srgb, var(--agent-color) 15%, transparent),
                       inset 0 0 80px rgba(0, 0, 0, 0.4);
           animation: heroSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          max-height: 80vh;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.1) transparent;
         }
         @keyframes heroSlideIn {
           from { opacity: 0; transform: translateY(-16px) scale(0.98); }
@@ -1276,12 +1280,14 @@ export default function MissionControl() {
 
         .hero-controls {
           position: sticky;
-          top: 0;
+          top: -32px;
           display: flex;
           justify-content: flex-end;
           gap: 6px;
           z-index: 10;
-          padding: 0 0 8px 0;
+          padding: 32px 0 8px 0;
+          margin-top: -32px;
+          background: linear-gradient(135deg, rgba(14, 14, 14, 0.99), rgba(20, 18, 30, 0.98));
         }
         .hero-control-btn {
           background: rgba(255, 255, 255, 0.05);
@@ -1324,42 +1330,6 @@ export default function MissionControl() {
           flex-shrink: 0;
           position: relative;
           z-index: 5;
-          flex-direction: row;
-          align-items: center;
-          gap: 14px;
-          margin-bottom: 12px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        .hero-fullscreen .hero-avatar-wrap {
-          width: 48px;
-          height: 48px;
-          border-width: 2px;
-          box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 25%, transparent);
-        }
-        .hero-fullscreen .hero-dot {
-          width: 10px;
-          height: 10px;
-          bottom: 2px;
-          right: 2px;
-          border-width: 2px;
-        }
-        .hero-fullscreen .hero-identity {
-          flex-direction: row;
-          align-items: center;
-          gap: 12px;
-          padding-top: 0;
-        }
-        .hero-fullscreen .hero-name {
-          font-size: 18px;
-          margin: 0;
-        }
-        .hero-fullscreen .hero-role {
-          font-size: 11px;
-          opacity: 0.7;
-        }
-        .hero-fullscreen .hero-active-task {
-          display: none;
         }
         .hero-fullscreen .hero-activity {
           flex: 1;
@@ -1381,10 +1351,11 @@ export default function MissionControl() {
           gap: 28px;
           margin-bottom: 28px;
           position: sticky;
-          top: 0;
+          top: -32px;
           z-index: 5;
-          background: inherit;
-          padding-bottom: 16px;
+          background: linear-gradient(135deg, rgba(14, 14, 14, 0.99), rgba(20, 18, 30, 0.98));
+          padding: 32px 0 16px 0;
+          margin-top: -32px;
         }
 
         .hero-avatar-wrap {
@@ -1463,10 +1434,6 @@ export default function MissionControl() {
           display: flex;
           flex-direction: column;
           gap: 8px;
-          max-height: 240px;
-          overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,0.1) transparent;
         }
         .hero-feed-item {
           display: grid;
@@ -1625,10 +1592,13 @@ export default function MissionControl() {
           align-items: center;
           gap: 12px;
           padding: 12px 16px;
-          background: rgba(255, 255, 255, 0.03);
+          background: rgba(14, 14, 14, 0.98);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 12px;
           transition: border-color 0.2s;
+          position: sticky;
+          bottom: 0;
+          z-index: 5;
         }
         .hero-message-bar:focus-within {
           border-color: var(--agent-color);
@@ -2159,6 +2129,12 @@ export default function MissionControl() {
         :global([data-theme="light"]) .hero-control-btn:hover {
           color: #000 !important;
           background: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .hero-controls {
+          background: linear-gradient(135deg, #FFFFFF, #F8F7F4) !important;
+        }
+        :global([data-theme="light"]) .hero-top {
+          background: linear-gradient(135deg, #FFFFFF, #F8F7F4) !important;
         }
         :global([data-theme="light"]) .feed-speak-btn,
         :global([data-theme="light"]) .feed-delete-btn {
