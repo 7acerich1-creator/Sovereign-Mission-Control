@@ -884,6 +884,76 @@ export default function CrewPage() {
           cursor: not-allowed;
         }
 
+        /* ====== LIGHT MODE OVERRIDES ====== */
+        [data-theme="light"] .crew-chat-panel {
+          background: rgba(255, 255, 255, 0.96) !important;
+          border-color: rgba(0, 0, 0, 0.1) !important;
+          box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12) !important;
+        }
+        [data-theme="light"] .crew-chat-header {
+          background: rgba(248, 247, 244, 0.9) !important;
+          border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .crew-chat-title {
+          color: #1a1a1a !important;
+        }
+        [data-theme="light"] .crew-msg-bubble {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .crew-msg-architect .crew-msg-bubble {
+          background: rgba(124, 92, 252, 0.08) !important;
+          border-color: rgba(124, 92, 252, 0.15) !important;
+        }
+        [data-theme="light"] .crew-msg-text {
+          color: #1a1a1a !important;
+        }
+        [data-theme="light"] .crew-msg-agent-tag {
+          color: inherit;
+        }
+        [data-theme="light"] .crew-msg-time {
+          color: rgba(0, 0, 0, 0.35) !important;
+        }
+        [data-theme="light"] .crew-msg-action-btn {
+          color: rgba(0, 0, 0, 0.3) !important;
+        }
+        [data-theme="light"] .crew-msg-action-btn:hover {
+          color: rgba(0, 0, 0, 0.6) !important;
+        }
+        [data-theme="light"] .crew-chat-input-bar {
+          background: rgba(248, 247, 244, 0.9) !important;
+          border-top-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .crew-chat-input {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.1) !important;
+          color: #1a1a1a !important;
+        }
+        [data-theme="light"] .crew-chat-input::placeholder {
+          color: rgba(0, 0, 0, 0.3) !important;
+        }
+        [data-theme="light"] .crew-chat-empty {
+          color: rgba(0, 0, 0, 0.35) !important;
+        }
+        [data-theme="light"] .crew-chat-ctrl-btn {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          color: #666 !important;
+        }
+        [data-theme="light"] .crew-chat-ctrl-btn:hover {
+          color: #1a1a1a !important;
+          background: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .crew-chat-trigger {
+          background: rgba(255, 255, 255, 0.9) !important;
+          border-color: rgba(124, 92, 252, 0.3) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+        }
+        [data-theme="light"] .crew-chat-send {
+          background: rgba(124, 92, 252, 0.1) !important;
+          border-color: rgba(124, 92, 252, 0.25) !important;
+        }
+
         @media (max-width: 768px) {
           section > div {
             grid-template-columns: 1fr !important;

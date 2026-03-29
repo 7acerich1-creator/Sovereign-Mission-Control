@@ -1312,15 +1312,28 @@ export default function MissionControl() {
           border-radius: 0;
           margin: 0;
           padding: 32px;
-          overflow-y: auto;
+          overflow: hidden;
           animation: none;
           display: flex;
           flex-direction: column;
         }
-        .hero-fullscreen .hero-activity-feed {
+        .hero-fullscreen .hero-top {
+          position: relative;
+          flex-shrink: 0;
+          z-index: 5;
+          background: inherit;
+        }
+        .hero-fullscreen .hero-activity {
           flex: 1;
-          max-height: none;
           overflow-y: auto;
+          min-height: 0;
+        }
+        .hero-fullscreen .hero-activity-feed {
+          max-height: none;
+          overflow-y: visible;
+        }
+        .hero-fullscreen .hero-message-bar {
+          flex-shrink: 0;
         }
 
         .hero-top {
@@ -2065,6 +2078,106 @@ export default function MissionControl() {
           color: #1D9E75;
           border-color: #1D9E75;
           background: rgba(29,158,117,0.1);
+        }
+
+        /* ====== LIGHT MODE OVERRIDES ====== */
+        :global([data-theme="light"]) .crew-hero-panel {
+          background: linear-gradient(135deg, #FFFFFF, #F8F7F4) !important;
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+        }
+        :global([data-theme="light"]) .hero-feed-item {
+          background: rgba(0, 0, 0, 0.02) !important;
+          border-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        :global([data-theme="light"]) .hero-feed-item.msg-architect {
+          background: rgba(201, 168, 76, 0.06) !important;
+        }
+        :global([data-theme="light"]) .hero-feed-item.msg-agent {
+          background: rgba(124, 92, 252, 0.04) !important;
+        }
+        :global([data-theme="light"]) .feed-content {
+          color: #1a1a1a !important;
+        }
+        :global([data-theme="light"]) .feed-sender {
+          color: inherit;
+        }
+        :global([data-theme="light"]) .hero-message-bar {
+          background: rgba(0, 0, 0, 0.02) !important;
+          border-color: rgba(0, 0, 0, 0.1) !important;
+        }
+        :global([data-theme="light"]) .hero-msg-input {
+          color: #1a1a1a !important;
+        }
+        :global([data-theme="light"]) .hero-active-task {
+          background: rgba(0, 0, 0, 0.02) !important;
+          border-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        :global([data-theme="light"]) .hero-control-btn {
+          background: rgba(0, 0, 0, 0.04) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          color: #555 !important;
+        }
+        :global([data-theme="light"]) .hero-control-btn:hover {
+          color: #000 !important;
+          background: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .feed-speak-btn,
+        :global([data-theme="light"]) .feed-delete-btn {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          color: #666 !important;
+        }
+        :global([data-theme="light"]) .chat-load-more-btn {
+          background: rgba(0, 0, 0, 0.02) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .progress-bar {
+          background: rgba(0, 0, 0, 0.06) !important;
+        }
+        :global([data-theme="light"]) .mission-status-bar {
+          background: linear-gradient(135deg, rgba(201, 168, 76, 0.06), rgba(29, 158, 117, 0.06)) !important;
+          border-color: rgba(201, 168, 76, 0.2) !important;
+        }
+        :global([data-theme="light"]) .hero-activity-feed {
+          scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+        }
+        :global([data-theme="light"]) .status-indicator.offline {
+          background: rgba(0, 0, 0, 0.04) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .avatar-status-dot {
+          border-color: #fff !important;
+        }
+        :global([data-theme="light"]) .table-head {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        :global([data-theme="light"]) .table-row:hover {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        :global([data-theme="light"]) .revenue-row:hover {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        :global([data-theme="light"]) .revenue-total {
+          background: rgba(201, 168, 76, 0.06) !important;
+        }
+        :global([data-theme="light"]) .sub-header {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        :global([data-theme="light"]) .sub-count {
+          background: rgba(0, 0, 0, 0.06) !important;
+        }
+        :global([data-theme="light"]) .task-action-btn,
+        :global([data-theme="light"]) .glitch-resolve-btn {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .section-badge {
+          background: rgba(201, 168, 76, 0.08) !important;
+          border-color: rgba(201, 168, 76, 0.15) !important;
+        }
+        :global([data-theme="light"]) .crew-current-task {
+          background: rgba(201, 168, 76, 0.05) !important;
+          border-color: rgba(201, 168, 76, 0.12) !important;
         }
 
         /* -- RESPONSIVE -- */

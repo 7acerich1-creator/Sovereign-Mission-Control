@@ -779,11 +779,12 @@ export default function Tasks() {
         /* TASK CHAT OVERLAY */
         .task-chat-overlay {
           position: fixed; top: 0; right: 0; bottom: 0; width: 420px;
+          height: 100vh; max-height: 100vh;
           z-index: 9999; background: rgba(5, 5, 8, 0.97); backdrop-filter: blur(20px);
           border-left: 1px solid var(--border-color);
-          display: flex; flex-direction: column;
+          display: flex; flex-direction: column; overflow: hidden;
         }
-        .task-chat-panel { display: flex; flex-direction: column; height: 100%; }
+        .task-chat-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
         .task-chat-header {
           display: flex; align-items: center; gap: 14px;
           padding: 20px; border-bottom: 1px solid;
@@ -802,7 +803,7 @@ export default function Tasks() {
           display: block; font-size: 11px; color: var(--color-text-muted);
           max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .task-chat-body { flex: 1; overflow-y: auto; padding: 20px; }
+        .task-chat-body { flex: 1; overflow-y: auto; padding: 20px; min-height: 0; }
         .task-chat-context {
           padding: 16px; border-radius: 10px; background: rgba(124, 92, 252, 0.06);
           border: 1px solid rgba(124, 92, 252, 0.12); margin-bottom: 20px;
@@ -913,6 +914,68 @@ export default function Tasks() {
           border: 1px dashed var(--border-color); border-radius: 16px;
         }
         .empty-icon { opacity: 0.2; margin-bottom: 24px; }
+
+        /* ====== LIGHT MODE OVERRIDES ====== */
+        [data-theme="light"] .task-chat-overlay {
+          background: rgba(255, 255, 255, 0.97) !important;
+          border-left-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        [data-theme="light"] .task-chat-header {
+          border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .task-chat-context {
+          background: rgba(124, 92, 252, 0.04) !important;
+          border-color: rgba(124, 92, 252, 0.1) !important;
+        }
+        [data-theme="light"] .task-chat-response {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        [data-theme="light"] .task-chat-input-bar {
+          background: rgba(248, 247, 244, 0.95) !important;
+          border-top-color: rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-theme="light"] .task-chat-input {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.1) !important;
+          color: #1a1a1a !important;
+        }
+        [data-theme="light"] .task-chat-input::placeholder {
+          color: rgba(0, 0, 0, 0.3) !important;
+        }
+        [data-theme="light"] .task-card {
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+        [data-theme="light"] .task-card:hover {
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+        }
+        [data-theme="light"] .task-agent-block {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        [data-theme="light"] .task-category {
+          background: rgba(0, 0, 0, 0.04) !important;
+        }
+        [data-theme="light"] .task-action-btn {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        [data-theme="light"] .edit-overlay {
+          background: rgba(255, 255, 255, 0.5) !important;
+        }
+        [data-theme="light"] .tab-switcher {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+        [data-theme="light"] .tab-btn.active {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        }
+        [data-theme="light"] .create-btn {
+          background: rgba(124, 92, 252, 0.06) !important;
+        }
+        [data-theme="light"] .add-task-ghost {
+          border-color: rgba(0, 0, 0, 0.12) !important;
+        }
+        [data-theme="light"] .task-assign-prompt {
+          background: rgba(124, 92, 252, 0.03) !important;
+        }
 
         @media (max-width: 900px) {
           .kanban-board { grid-template-columns: 1fr; }
