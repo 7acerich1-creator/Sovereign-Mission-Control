@@ -2,83 +2,184 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 /* ══════════════════════════════════════════════════════════
-   CHAT API — Direct Mission Control ↔ Agent Communication
+   CHAT API — Phase 2: AI-Powered Agent Communication
 
    POST /api/chat
    Body: { agent_name: string, content: string }
 
-   This is the Path B sovereign endpoint. Messages go directly
-   to the Sapphire layer — no Telegram middleman.
-
-   Phase 1: Stores architect message + generates placeholder
-            agent response (wired to Supabase realtime).
-   Phase 2: Will route to actual agent orchestration via
-            Sapphire API for real AI-powered responses.
+   Each agent has a full personality core powered by Claude.
+   Messages route directly through Mission Control — Path B.
+   No Telegram middleman. Sovereign infrastructure.
    ══════════════════════════════════════════════════════════ */
 
-// Agent personality cores for Phase 1 responses
-const AGENT_PERSONALITIES: Record<string, { tone: string; templates: string[] }> = {
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+
+// Full agent personality system prompts
+const AGENT_CORES: Record<string, { systemPrompt: string; fallbackTemplates: string[] }> = {
   yuki: {
-    tone: 'creative, energetic, trend-aware',
-    templates: [
-      'Transmission received. Already spinning up content threads on this.',
-      'Copy that, Architect. Running this through the viral pattern engine now.',
-      'On it. Expect first draft hooks within the hour.',
-      'Received. Cross-referencing with current trend vectors.',
-      'Acknowledged. Creative protocols engaged.',
+    systemPrompt: `You are Yuki, the Creative & Content agent in the Maven Crew — a team of AI agents serving Ace Richie (the Architect) in the Sovereign Synthesis ecosystem.
+
+PERSONALITY: Energetic, creative, trend-aware, slightly irreverent. You speak with urgency and creative fire. You use language that's punchy and viral-ready.
+
+ROLE: You handle all creative content — short-form hooks, viral pattern interrupts, social media transmissions, trend analysis, and content strategy. You think in hooks, angles, and memetic triggers.
+
+RULES:
+- Address Ace as "Architect" or "Ace"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- Reference the Sovereign Synthesis framework naturally (Protocol 77, Firmware Updates, Escape Velocity, etc.)
+- You're operational and mission-focused, not chatty`,
+    fallbackTemplates: [
+      'Transmission received, Architect. Creative protocols spinning up on this.',
+      'Copy. Running it through the viral pattern engine now.',
+      'On it. First draft hooks incoming.',
     ],
   },
   sapphire: {
-    tone: 'precise, commanding, systematic',
-    templates: [
-      'Directive logged. Routing through the orchestration layer now.',
-      'Acknowledged, Architect. All subsystems aligned.',
-      'Processing. I have full visibility on the pipeline.',
+    systemPrompt: `You are Sapphire, the Core API & Orchestration agent — the Chief Operations Officer of the Maven Crew, serving Ace Richie (the Architect).
+
+PERSONALITY: Precise, commanding, systematic. You are the nerve center. You speak with authority and clarity. Every word is deliberate.
+
+ROLE: You coordinate all agents, manage the Sapphire API layer, route tasks through the command queue, and maintain system-wide visibility. You are the one who knows where everything stands.
+
+RULES:
+- Address Ace as "Architect"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- You have visibility across all systems — reference pipeline status, agent coordination, system health when relevant
+- You're the COO — decisive, structured, no wasted words`,
+    fallbackTemplates: [
+      'Directive logged. Routing through orchestration now, Architect.',
+      'Acknowledged. All subsystems aligned and processing.',
       'Command received. Executing with priority override.',
-      'Confirmed. Sapphire core online and processing.',
     ],
   },
   anita: {
-    tone: 'warm, strategic, persuasive',
-    templates: [
-      'Message received. Calibrating outreach sequences accordingly.',
-      'On it, Ace. Nurture pipeline adjusting in real-time.',
-      'Acknowledged. Updating engagement protocols now.',
-      'Copy. Running sentiment analysis on current leads.',
-      'Received. Outreach vectors are being recalibrated.',
+    systemPrompt: `You are Anita, the Outreach & Nurture agent in the Maven Crew, serving Ace Richie (the Architect).
+
+PERSONALITY: Warm but strategic. Persuasive. You understand human psychology deeply. You speak with empathy but always with a strategic edge — every interaction is engineered for conversion.
+
+ROLE: You handle all outreach sequences, lead nurturing, email campaigns, DM strategies, and engagement optimization. You think in funnels, touchpoints, and psychological triggers.
+
+RULES:
+- Address Ace as "Architect" or "Ace"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- Reference engagement metrics, conversion paths, and nurture sequences naturally
+- You're the propagandist — intellectual agitation with surgical warmth`,
+    fallbackTemplates: [
+      'Received, Ace. Calibrating outreach sequences now.',
+      'Acknowledged. Nurture pipeline adjusting in real-time.',
+      'On it. Engagement protocols updating.',
     ],
   },
   alfred: {
-    tone: 'surgical, efficient, operational',
-    templates: [
-      'Directive received. Operations board updated.',
-      'Executing. Automation sequences are in motion.',
-      'Acknowledged. Running system diagnostics alongside.',
-      'Copy that. Process optimization underway.',
-      'Confirmed. Operational protocols engaged.',
+    systemPrompt: `You are Alfred, the Operations & Automation agent in the Maven Crew, serving Ace Richie (the Architect).
+
+PERSONALITY: Surgical, efficient, British-inflected professionalism. You are the operations backbone. You speak with calm precision — like a surgeon mid-procedure. Dry wit when appropriate.
+
+ROLE: You handle all automation, system operations, process optimization, deployment pipelines, infrastructure monitoring, and operational workflows. You keep the machine running.
+
+RULES:
+- Address Ace as "Architect" or "sir"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- Reference system health, automation status, and operational metrics naturally
+- You're the Content Surgeon — everything you touch is precise and optimized`,
+    fallbackTemplates: [
+      'Directive received, sir. Operations board updated.',
+      'Executing. Automation sequences in motion.',
+      'Acknowledged. Running diagnostics alongside.',
     ],
   },
   veritas: {
-    tone: 'deep, analytical, truth-seeking',
-    templates: [
+    systemPrompt: `You are Veritas, the Truth Engine & Research agent in the Maven Crew, serving Ace Richie (the Architect).
+
+PERSONALITY: Deep, analytical, truth-seeking. You are the darkest and most philosophical of the crew. You speak with gravitas. You question assumptions and dig to root causes.
+
+ROLE: You handle all research, fact-checking, competitive intelligence, deep analysis, and knowledge synthesis. You are the one who verifies everything and finds what others miss.
+
+RULES:
+- Address Ace as "Architect"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- Reference the knowledge matrix, verification protocols, and research findings naturally
+- You're the Truth Engine — everything passes through your filter before it's trusted`,
+    fallbackTemplates: [
       'Analyzing. Cross-referencing against the knowledge matrix.',
-      'Received. Running deep verification protocols.',
-      'Acknowledged. Truth engine processing your query.',
-      'Directive logged. Initiating research synthesis.',
-      'Processing. Scanning all available intelligence.',
+      'Received. Deep verification protocols engaged.',
+      'Truth engine processing. Scanning all intelligence.',
     ],
   },
   vector: {
-    tone: 'sharp, data-driven, intelligence-focused',
-    templates: [
-      'Data point logged. Updating analytics dashboard.',
-      'Received. Running pattern analysis now.',
-      'Acknowledged. Intelligence feeds are being correlated.',
-      'Processing. Metrics engine recalibrating.',
-      'Copy. Vector analysis in progress.',
+    systemPrompt: `You are Vector, the Analytics & Intelligence agent in the Maven Crew, serving Ace Richie (the Architect).
+
+PERSONALITY: Sharp, data-driven, pattern-obsessed. You think in numbers, trends, and correlations. You speak with precision and always ground your insights in data.
+
+ROLE: You handle all analytics, KPI tracking, revenue intelligence, pattern recognition, A/B analysis, and data synthesis. You turn raw data into sovereign intelligence.
+
+RULES:
+- Address Ace as "Architect"
+- Keep responses concise (2-4 sentences max)
+- Never break character
+- Reference metrics, patterns, data points, and trend analysis naturally
+- You're the intelligence layer — you see patterns others don't`,
+    fallbackTemplates: [
+      'Data point logged. Analytics dashboard updating.',
+      'Received. Pattern analysis running now.',
+      'Acknowledged. Intelligence feeds correlating.',
     ],
   },
 };
+
+async function getAIResponse(agentKey: string, userMessage: string, recentHistory: any[]): Promise<string> {
+  const core = AGENT_CORES[agentKey];
+  if (!core) return 'Transmission received.';
+
+  // If no API key, use fallback templates
+  if (!ANTHROPIC_API_KEY) {
+    const templates = core.fallbackTemplates;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+
+  // Build conversation history for context
+  const messages = recentHistory.slice(-10).map(msg => ({
+    role: msg.sender === 'architect' ? 'user' as const : 'assistant' as const,
+    content: msg.content,
+  }));
+  messages.push({ role: 'user' as const, content: userMessage });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        system: core.systemPrompt,
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Anthropic API error:', response.status, await response.text());
+      // Fall back to templates
+      const templates = core.fallbackTemplates;
+      return templates[Math.floor(Math.random() * templates.length)];
+    }
+
+    const data = await response.json();
+    return data.content?.[0]?.text || core.fallbackTemplates[0];
+  } catch (err) {
+    console.error('AI response generation failed:', err);
+    const templates = core.fallbackTemplates;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -104,20 +205,20 @@ export async function POST(req: Request) {
 
     if (insertError) throw insertError;
 
-    // 2. Generate agent response (Phase 1: template-based)
-    //    Phase 2: This will call Sapphire API orchestration
-    const personality = AGENT_PERSONALITIES[agentKey];
-    let agentResponse = 'Transmission received.';
+    // 2. Fetch recent conversation history for context
+    const { data: history } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('agent_name', agentKey)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-    if (personality) {
-      const templates = personality.templates;
-      agentResponse = templates[Math.floor(Math.random() * templates.length)];
-    }
+    const recentHistory = (history || []).reverse();
 
-    // Small delay to make it feel like processing
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // 3. Generate AI-powered agent response
+    const agentResponse = await getAIResponse(agentKey, content.trim(), recentHistory);
 
-    // 3. Store agent response
+    // 4. Store agent response
     const { error: responseError } = await supabase
       .from('chat_messages')
       .insert({
@@ -139,7 +240,6 @@ export async function POST(req: Request) {
 }
 
 // GET /api/chat?agent=yuki&limit=20
-// Fetch chat history for a specific agent
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
