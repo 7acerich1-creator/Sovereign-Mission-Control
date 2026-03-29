@@ -2,24 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  CheckSquare, 
-  Bot, 
-  User, 
-  Plus, 
-  MoreVertical,
+import {
+  CheckSquare,
+  Bot,
+  User,
+  Plus,
+  X,
   Calendar,
   Zap,
   Clock,
-  Activity
+  Activity,
+  Target,
+  ArrowRight,
+  UserCircle,
+  ChevronDown,
+  Trash2,
+  Flag
 } from 'lucide-react';
 
 type Task = {
   id: string;
   title: string;
+  description?: string;
   status: 'To Do' | 'In Progress' | 'Complete';
   priority: 'High' | 'Medium' | 'Low';
+  assigned_agent?: string;
+  category?: string;
   due_date?: string;
+  created_at?: string;
 };
 
 type AgentAction = {
@@ -30,11 +40,40 @@ type AgentAction = {
   created_at: string;
 };
 
+const CREW_AGENTS = ['Sapphire', 'Yuki', 'Anita', 'Alfred', 'Veritas', 'Vector'];
+
+const AGENT_COLORS: Record<string, string> = {
+  sapphire: '#4facfe',
+  yuki: '#fddb92',
+  anita: '#ebedee',
+  alfred: '#C0392B',
+  veritas: '#43e97b',
+  vector: '#E67E22',
+};
+
+const MISSION_CATEGORIES = [
+  { name: 'Revenue', icon: '💰', description: 'Direct revenue actions toward $1.2M' },
+  { name: 'Content', icon: '📡', description: 'Firmware updates & viral transmissions' },
+  { name: 'Outreach', icon: '🎯', description: 'Lead gen, nurture, Inner Circle growth' },
+  { name: 'Infrastructure', icon: '⚙️', description: 'Systems, automation, deployment' },
+  { name: 'Research', icon: '🔍', description: 'Market intel, competitive analysis' },
+  { name: 'Analytics', icon: '📊', description: 'KPIs, funnel metrics, tracking' },
+];
+
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState<'Human' | 'AI'>('Human');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  // Form state
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newPriority, setNewPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [newAgent, setNewAgent] = useState('');
+  const [newCategory, setNewCategory] = useState('Revenue');
+  const [newDueDate, setNewDueDate] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -53,109 +92,291 @@ export default function Tasks() {
   async function fetchData() {
     setLoading(true);
     if (activeTab === 'Human') {
-      const { data } = await supabase.from('tasks').select('*');
+      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (data) setTasks(data as Task[]);
     } else {
       const { data } = await supabase
         .from('activity_log')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(30);
       if (data) setActions(data as AgentAction[]);
     }
     setLoading(false);
   }
 
-  const renderKanban = () => {
-    const columns = ['To Do', 'In Progress', 'Complete'];
-    return (
-      <div className="kanban-board">
-        {columns.map(col => (
-          <div key={col} className="kanban-column">
+  async function createTask() {
+    if (!newTitle.trim()) return;
+    await supabase.from('tasks').insert({
+      title: newTitle.trim(),
+      description: newDesc.trim() || null,
+      status: 'To Do',
+      priority: newPriority,
+      assigned_agent: newAgent || null,
+      category: newCategory,
+      due_date: newDueDate || null,
+    });
+    setNewTitle('');
+    setNewDesc('');
+    setNewPriority('Medium');
+    setNewAgent('');
+    setNewCategory('Revenue');
+    setNewDueDate('');
+    setShowForm(false);
+  }
+
+  async function moveTask(id: string, newStatus: 'To Do' | 'In Progress' | 'Complete') {
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', id);
+  }
+
+  async function deleteTask(id: string) {
+    await supabase.from('tasks').delete().eq('id', id);
+  }
+
+  const columns: { key: Task['status']; label: string; next?: Task['status'] }[] = [
+    { key: 'To Do', label: 'MISSION QUEUE', next: 'In Progress' },
+    { key: 'In Progress', label: 'EXECUTING', next: 'Complete' },
+    { key: 'Complete', label: 'MISSION COMPLETE' },
+  ];
+
+  // Stats
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'Complete').length;
+  const highPriorityActive = tasks.filter(t => t.priority === 'High' && t.status !== 'Complete').length;
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const renderKanban = () => (
+    <div className="kanban-board">
+      {columns.map(col => {
+        const colTasks = tasks.filter(t => t.status === col.key);
+        return (
+          <div key={col.key} className="kanban-column">
             <div className="column-header">
-              <span className="column-title">{col.toUpperCase()}</span>
-              <span className="column-count">{tasks.filter(t => t.status === col).length}</span>
+              <span className="column-title">{col.label}</span>
+              <span className="column-count">{colTasks.length}</span>
             </div>
             <div className="column-content">
-              {tasks.filter(t => t.status === col).map(task => (
-                <div key={task.id} className="card task-card fade-in">
-                  <div className="task-priority">
-                    <div className={`priority-dot ${task.priority?.toLowerCase()}`}></div>
-                    <span>{task.priority || 'Medium'}</span>
+              {colTasks.map(task => {
+                const agentColor = task.assigned_agent ? AGENT_COLORS[task.assigned_agent.toLowerCase()] || 'var(--color-text-muted)' : '';
+                return (
+                  <div key={task.id} className={`card task-card fade-in priority-${task.priority?.toLowerCase()}`}>
+                    <div className="task-top-row">
+                      <div className="task-priority">
+                        <div className={`priority-dot ${task.priority?.toLowerCase()}`}></div>
+                        <span>{task.priority || 'Medium'}</span>
+                      </div>
+                      {task.category && (
+                        <span className="task-category">
+                          {MISSION_CATEGORIES.find(c => c.name === task.category)?.icon} {task.category}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="task-title">{task.title}</h3>
+                    {task.description && (
+                      <p className="task-desc">{task.description}</p>
+                    )}
+                    <div className="task-footer">
+                      <div className="task-meta-left">
+                        {task.assigned_agent && (
+                          <span className="task-agent" style={{ color: agentColor, borderColor: agentColor }}>
+                            <UserCircle size={11} />
+                            {task.assigned_agent}
+                          </span>
+                        )}
+                        {task.due_date && (
+                          <span className="task-date">
+                            <Calendar size={10} />
+                            {new Date(task.due_date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="task-actions">
+                        {col.next && (
+                          <button className="task-action-btn move" onClick={() => moveTask(task.id, col.next!)} title={`Move to ${col.next}`}>
+                            <ArrowRight size={13} />
+                          </button>
+                        )}
+                        <button className="task-action-btn delete" onClick={() => deleteTask(task.id)} title="Delete">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="task-title">{task.title}</h3>
-                  <div className="task-meta">
-                    <Calendar size={12} />
-                    <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No date'}</span>
-                  </div>
-                </div>
-              ))}
-              <div className="add-task-ghost">
-                <Plus size={16} />
-                <span>Add Task</span>
-              </div>
+                );
+              })}
+              {col.key === 'To Do' && (
+                <button className="add-task-ghost" onClick={() => setShowForm(true)}>
+                  <Plus size={16} />
+                  <span>Add Mission Task</span>
+                </button>
+              )}
             </div>
           </div>
-        ))}
-      </div>
-    );
-  };
+        );
+      })}
+    </div>
+  );
 
-  const renderAgentActions = () => {
-    return (
-      <div className="actions-list">
-        {actions.map((action, idx) => (
-          <div key={action.id} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
-            <div className="action-icon">
-              <Activity size={18} />
-            </div>
-            <div className="action-body">
-              <div className="action-header">
-                <span className="action-type">{action.event_type}</span>
-                <span className="action-time">
-                  {new Date(action.created_at).toLocaleString()}
-                </span>
-              </div>
-              {action.title && <p className="action-title" style={{fontWeight:600, marginBottom:4, color:'var(--color-text-primary)'}}>{action.title}</p>}
-              <p className="action-description">{action.description}</p>
-            </div>
+  const renderAgentActions = () => (
+    <div className="actions-list">
+      {actions.map((action, idx) => (
+        <div key={action.id} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
+          <div className="action-icon">
+            <Activity size={18} />
           </div>
-        ))}
-        {actions.length === 0 && (
-          <div className="empty-state">
-            <Bot size={48} className="empty-icon" />
-            <p>NO AGENT ACTIONS LOGGED</p>
+          <div className="action-body">
+            <div className="action-header">
+              <span className="action-type">{action.event_type}</span>
+              <span className="action-time">
+                {new Date(action.created_at).toLocaleString()}
+              </span>
+            </div>
+            {action.title && <p className="action-title">{action.title}</p>}
+            <p className="action-description">{action.description}</p>
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
+      ))}
+      {actions.length === 0 && (
+        <div className="empty-state">
+          <Bot size={48} className="empty-icon" />
+          <p>NO AGENT ACTIONS LOGGED</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fade-in">
       <header className="page-header">
         <div className="header-main">
           <h1 className="h1-display">TASKS & PROJECTS</h1>
-          <p className="eyebrow text-secondary">EXECUTION ARCHITECTURE</p>
+          <p className="eyebrow text-secondary">MISSION EXECUTION ARCHITECTURE :: $1.2M OBJECTIVE</p>
         </div>
-        
+
         <div className="tab-switcher">
-          <button 
+          <button
             className={`tab-btn ${activeTab === 'Human' ? 'active' : ''}`}
             onClick={() => setActiveTab('Human')}
           >
             <User size={16} />
-            <span>HUMAN TASKS</span>
+            <span>MISSION TASKS</span>
           </button>
-          <button 
+          <button
             className={`tab-btn ${activeTab === 'AI' ? 'active' : ''}`}
             onClick={() => setActiveTab('AI')}
           >
             <Bot size={16} />
-            <span>AGENT ACTIONS</span>
+            <span>CREW ACTIONS</span>
           </button>
         </div>
       </header>
+
+      {/* STAT CARDS */}
+      {activeTab === 'Human' && (
+        <>
+          <section className="metrics-grid">
+            <div className="card stat-card">
+              <div className="stat-content">
+                <span className="stat-label">TOTAL MISSIONS</span>
+                <span className="stat-value">{totalTasks}</span>
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-content">
+                <span className="stat-label">COMPLETED</span>
+                <span className="stat-value" style={{ color: 'var(--color-accent-success)' }}>{completedTasks}</span>
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-content">
+                <span className="stat-label">HIGH PRIORITY</span>
+                <span className="stat-value" style={{ color: 'var(--color-accent-danger)' }}>{highPriorityActive}</span>
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-content">
+                <span className="stat-label">COMPLETION RATE</span>
+                <span className="stat-value">{completionRate}%</span>
+              </div>
+            </div>
+          </section>
+
+          {/* ACTIONS BAR */}
+          <div className="actions-bar">
+            <button className="create-btn" onClick={() => setShowForm(v => !v)}>
+              {showForm ? <X size={14} /> : <Plus size={14} />}
+              <span>{showForm ? 'CANCEL' : 'NEW MISSION TASK'}</span>
+            </button>
+          </div>
+
+          {/* NEW TASK FORM */}
+          {showForm && (
+            <div className="card task-form fade-in">
+              <h3 className="form-title">CREATE MISSION TASK</h3>
+              <div className="form-grid">
+                <div className="form-field full-width">
+                  <label>OBJECTIVE</label>
+                  <input
+                    type="text"
+                    placeholder="What needs to be executed..."
+                    value={newTitle}
+                    onChange={e => setNewTitle(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && createTask()}
+                    className="form-input"
+                    autoFocus
+                  />
+                </div>
+                <div className="form-field full-width">
+                  <label>DETAILS (OPTIONAL)</label>
+                  <textarea
+                    placeholder="Context, deliverables, success criteria..."
+                    value={newDesc}
+                    onChange={e => setNewDesc(e.target.value)}
+                    className="form-textarea"
+                    rows={2}
+                  />
+                </div>
+                <div className="form-field">
+                  <label>PRIORITY</label>
+                  <div className="priority-picker">
+                    {(['High', 'Medium', 'Low'] as const).map(p => (
+                      <button
+                        key={p}
+                        className={`prio-btn ${p.toLowerCase()} ${newPriority === p ? 'active' : ''}`}
+                        onClick={() => setNewPriority(p)}
+                      >
+                        <Flag size={11} />
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label>MISSION CATEGORY</label>
+                  <select className="form-select" value={newCategory} onChange={e => setNewCategory(e.target.value)}>
+                    {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>ASSIGN CREW MEMBER</label>
+                  <select className="form-select" value={newAgent} onChange={e => setNewAgent(e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {CREW_AGENTS.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>DUE DATE</label>
+                  <input type="date" className="form-input" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
+                </div>
+              </div>
+              <button className="submit-btn" onClick={createTask} disabled={!newTitle.trim()}>
+                <Target size={14} />
+                CREATE MISSION TASK
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {activeTab === 'Human' ? renderKanban() : renderAgentActions()}
 
@@ -167,7 +388,6 @@ export default function Tasks() {
           border-radius: 12px;
           border: 1px solid var(--border-color);
         }
-
         .tab-btn {
           display: flex;
           align-items: center;
@@ -183,39 +403,150 @@ export default function Tasks() {
           cursor: pointer;
           transition: var(--transition-fast);
         }
-
         .tab-btn.active {
           background: var(--color-bg-surface);
           color: var(--color-accent-primary);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
-        .kanban-board {
-          display: grid;
-          grid-template-cols: repeat(3, 1fr);
-          gap: 24px;
+        .actions-bar {
+          display: flex;
+          justify-content: flex-end;
+          margin-bottom: 20px;
+        }
+        .create-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 20px;
+          border-radius: 10px;
+          border: 1px solid rgba(124, 92, 252, 0.3);
+          background: rgba(124, 92, 252, 0.08);
+          color: var(--color-accent-secondary);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+        .create-btn:hover {
+          background: rgba(124, 92, 252, 0.15);
+          border-color: rgba(124, 92, 252, 0.5);
         }
 
+        /* FORM */
+        .task-form {
+          padding: 28px;
+          margin-bottom: 24px;
+          border: 1px solid rgba(124, 92, 252, 0.15);
+        }
+        .form-title {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          letter-spacing: 0.12em;
+          color: var(--color-accent-secondary);
+          margin-bottom: 20px;
+        }
+        .form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+        .full-width { grid-column: 1 / -1; }
+        .form-field label {
+          display: block;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          color: var(--color-text-muted);
+          margin-bottom: 8px;
+        }
+        .form-input, .form-textarea, .form-select {
+          width: 100%;
+          background: var(--color-bg-deepest);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 10px 14px;
+          color: var(--color-text-primary);
+          font-size: 13px;
+          font-family: inherit;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+          border-color: var(--color-accent-secondary);
+        }
+        .form-textarea { resize: vertical; }
+        .form-select { cursor: pointer; }
+
+        .priority-picker {
+          display: flex;
+          gap: 8px;
+        }
+        .prio-btn {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--color-text-muted);
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+        .prio-btn.high.active { background: rgba(217, 85, 85, 0.12); color: var(--color-accent-danger); border-color: var(--color-accent-danger); }
+        .prio-btn.medium.active { background: rgba(201, 168, 76, 0.12); color: var(--color-accent-primary); border-color: var(--color-accent-primary); }
+        .prio-btn.low.active { background: rgba(46, 204, 143, 0.1); color: var(--color-accent-success); border-color: var(--color-accent-success); }
+
+        .submit-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 24px;
+          border-radius: 10px;
+          border: none;
+          background: var(--color-accent-secondary);
+          color: white;
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+        .submit-btn:hover:not(:disabled) { filter: brightness(1.15); }
+        .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* KANBAN */
+        .kanban-board {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
         .kanban-column {
           display: flex;
           flex-direction: column;
           gap: 16px;
         }
-
         .column-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 0 8px;
         }
-
         .column-title {
           font-size: 11px;
           font-weight: 800;
           color: var(--color-text-muted);
           letter-spacing: 0.1em;
+          font-family: var(--font-mono);
         }
-
         .column-count {
           font-size: 10px;
           font-family: var(--font-mono);
@@ -224,20 +555,22 @@ export default function Tasks() {
           border-radius: 10px;
           color: var(--color-text-secondary);
         }
-
         .column-content {
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
 
+        /* TASK CARDS */
         .task-card {
           padding: 20px;
-          cursor: grab;
         }
-
-        .task-card:active { cursor: grabbing; }
-
+        .task-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
         .task-priority {
           display: flex;
           align-items: center;
@@ -245,29 +578,90 @@ export default function Tasks() {
           font-size: 10px;
           font-family: var(--font-mono);
           text-transform: uppercase;
-          margin-bottom: 12px;
+          color: var(--color-text-muted);
         }
-
         .priority-dot { width: 6px; height: 6px; border-radius: 50%; }
         .priority-dot.high { background: var(--color-accent-danger); box-shadow: 0 0 8px var(--color-accent-danger); }
         .priority-dot.medium { background: var(--color-accent-primary); }
         .priority-dot.low { background: var(--color-accent-success); }
 
+        .task-category {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          color: var(--color-text-muted);
+          background: rgba(255, 255, 255, 0.04);
+          padding: 3px 8px;
+          border-radius: 4px;
+        }
+
         .task-title {
           font-size: 14px;
           font-weight: 600;
           line-height: 1.4;
-          margin-bottom: 16px;
+          margin-bottom: 6px;
           color: var(--color-text-primary);
         }
+        .task-desc {
+          font-size: 12px;
+          color: var(--color-text-muted);
+          line-height: 1.5;
+          margin-bottom: 12px;
+        }
 
-        .task-meta {
+        .task-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 8px;
+        }
+        .task-meta-left {
           display: flex;
           align-items: center;
-          gap: 6px;
-          font-size: 11px;
+          gap: 10px;
+        }
+        .task-agent {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 10px;
+          font-family: var(--font-mono);
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+          border: 1px solid;
+          opacity: 0.8;
+        }
+        .task-date {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 10px;
+          font-family: var(--font-mono);
           color: var(--color-text-muted);
         }
+
+        .task-actions {
+          display: flex;
+          gap: 4px;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .task-card:hover .task-actions { opacity: 1; }
+
+        .task-action-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 5px;
+          padding: 4px 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          transition: var(--transition-fast);
+        }
+        .task-action-btn.move { color: var(--color-accent-success); }
+        .task-action-btn.move:hover { background: rgba(46, 204, 143, 0.1); }
+        .task-action-btn.delete { color: var(--color-text-muted); }
+        .task-action-btn.delete:hover { color: var(--color-accent-danger); background: rgba(217, 85, 85, 0.1); }
 
         .add-task-ghost {
           display: flex;
@@ -282,26 +676,24 @@ export default function Tasks() {
           cursor: pointer;
           transition: var(--transition-fast);
         }
-
         .add-task-ghost:hover {
           border-color: var(--color-accent-secondary);
           color: var(--color-accent-secondary);
           background: rgba(124, 92, 252, 0.05);
         }
 
+        /* AGENT ACTIONS */
         .actions-list {
           display: flex;
           flex-direction: column;
           gap: 16px;
           max-width: 800px;
         }
-
         .action-card {
           display: flex;
           gap: 20px;
           padding: 20px;
         }
-
         .action-icon {
           width: 40px;
           height: 40px;
@@ -312,12 +704,13 @@ export default function Tasks() {
           justify-content: center;
           border-radius: 10px;
           border: 1px solid rgba(124, 92, 252, 0.2);
+          flex-shrink: 0;
         }
-
         .action-body { flex: 1; }
         .action-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .action-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
         .action-time { font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted); }
+        .action-title { font-weight: 600; margin-bottom: 4px; color: var(--color-text-primary); font-size: 14px; }
         .action-description { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
 
         .empty-state {
@@ -330,8 +723,11 @@ export default function Tasks() {
           border: 1px dashed var(--border-color);
           border-radius: 16px;
         }
-
         .empty-icon { opacity: 0.2; margin-bottom: 24px; }
+
+        @media (max-width: 900px) {
+          .kanban-board { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
   );

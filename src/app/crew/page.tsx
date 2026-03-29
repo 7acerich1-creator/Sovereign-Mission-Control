@@ -289,12 +289,39 @@ export default function CrewPage() {
             <span className="crew-chat-badge">{groupMessages.length}</span>
           </div>
           <div className="crew-chat-controls">
-            <button className="crew-chat-ctrl-btn" onClick={() => {
-              fetch(`/api/chat-group?limit=${PAGE_SIZE}`)
-                .then(r => r.json())
-                .then(d => { if (d.messages) { setGroupMessages(d.messages); setHasMore(d.messages.length >= PAGE_SIZE); } })
-                .catch(() => {});
-            }} title="Refresh">
+            <button className="crew-chat-ctrl-btn" onClick={async () => {
+              // Regenerate: find last architect message and re-send to get fresh crew responses
+              const lastArchitectMsg = [...groupMessages].reverse().find(m => m.sender === 'architect');
+              if (lastArchitectMsg) {
+                // Delete last batch of agent responses (after the last architect message)
+                const lastArchIdx = groupMessages.lastIndexOf(lastArchitectMsg);
+                const agentMsgsAfter = groupMessages.slice(lastArchIdx + 1).filter(m => m.sender !== 'architect');
+                for (const msg of agentMsgsAfter) {
+                  await fetch('/api/chat-group', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: msg.id }),
+                  });
+                }
+                // Re-send to get new agent responses
+                const res = await fetch('/api/chat-group', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: lastArchitectMsg.content }),
+                });
+                if (res.ok) {
+                  // Refresh the full history
+                  const hist = await fetch(`/api/chat-group?limit=${PAGE_SIZE}`).then(r => r.json());
+                  if (hist.messages) { setGroupMessages(hist.messages); setHasMore(hist.messages.length >= PAGE_SIZE); }
+                }
+              } else {
+                // No messages — just refresh
+                fetch(`/api/chat-group?limit=${PAGE_SIZE}`)
+                  .then(r => r.json())
+                  .then(d => { if (d.messages) { setGroupMessages(d.messages); setHasMore(d.messages.length >= PAGE_SIZE); } })
+                  .catch(() => {});
+              }
+            }} title="Regenerate last response">
               <RotateCcw size={13} />
             </button>
             {groupMessages.length > 0 && (
@@ -637,9 +664,11 @@ export default function CrewPage() {
           right: 0;
           bottom: 0;
           width: 100%;
-          max-height: 100%;
+          height: 100vh;
+          max-height: 100vh;
           border-radius: 0;
           z-index: 9999;
+          overflow: hidden;
         }
         .crew-chat-bg {
           position: absolute;
@@ -713,6 +742,9 @@ export default function CrewPage() {
         .crew-chat-fullscreen .crew-chat-feed {
           max-height: none;
           min-height: 0;
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
         }
         .crew-chat-loading {
           text-align: center;

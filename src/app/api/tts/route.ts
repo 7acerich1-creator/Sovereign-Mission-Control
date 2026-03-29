@@ -17,9 +17,9 @@ import { NextResponse } from 'next/server';
 // Update these with your preferred voices
 const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similarity: number }> = {
   yuki: {
-    voiceId: 'AZnzlk1XvdvUeBnXmlld',  // "Domi" — strong, energetic female. Attitude and creative fire.
-    stability: 0.25,       // very low = maximum expressiveness, energy, attitude
-    similarity: 0.72,      // looser = more dynamic, unpredictable delivery
+    voiceId: 'XB0fDUnXU5powFXDhCwa',  // "Charlotte" — strong, seductive female. Retuned for max energy & attitude.
+    stability: 0.20,       // very low = maximum expressiveness, energy, attitude
+    similarity: 0.68,      // loose = dynamic, unpredictable, punchy delivery
   },
   sapphire: {
     voiceId: 'EXAVITQu4vr4xnSDxMaL',  // "Sarah" — soft American female. Conversational, clean, direct.
@@ -37,9 +37,9 @@ const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similar
     similarity: 0.85,
   },
   veritas: {
-    voiceId: 'VR6AewLTigWG4xSOukaG',  // "Arnold" — crisp, slightly mechanical. Cold logic with edge.
-    stability: 0.70,       // high = deliberate, measured, robotic undertone
-    similarity: 0.90,      // precise articulation
+    voiceId: 'pqHfZKP75CvOlQylNhV4',  // "Bill" — deep, powerful documentary voice. Maximum gravitas.
+    stability: 0.75,       // high = deliberate, weighty, authoritative
+    similarity: 0.88,      // precise but natural gravitas
   },
   vector: {
     voiceId: 'TX3LPaxmHKxFdv7VOQHJ',  // "Liam" — perfect as-is. Sharp, data-driven.

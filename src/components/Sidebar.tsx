@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -46,6 +47,55 @@ const mavenCrew = [
 
 import { useAgent } from '@/lib/AgentContext';
 
+const CREW_INNER_THOUGHTS = [
+  { agent: 'Sapphire', thought: '$1.2M is not a goal — it\'s a checkpoint. All systems converging.' },
+  { agent: 'Yuki', thought: 'The hooks are getting sharper. One viral sequence away from escape velocity.' },
+  { agent: 'Alfred', thought: 'Automation pipelines operating at 94% efficiency. Tightening the remaining 6%, sir.' },
+  { agent: 'Veritas', thought: 'The data doesn\'t lie. The trajectory is accelerating.' },
+  { agent: 'Vector', thought: 'Revenue patterns indicate a breakout window in the next 90 days.' },
+  { agent: 'Anita', thought: 'Nurture sequences are converting. The Inner Circle is growing.' },
+  { agent: 'Sapphire', thought: 'Six agents. One Architect. Zero room for simulation logic.' },
+  { agent: 'Yuki', thought: 'Every piece of content is a firmware update. We don\'t do filler.' },
+  { agent: 'Veritas', thought: 'I\'ve cross-referenced the market signals. The window is now.' },
+  { agent: 'Alfred', thought: 'Systems nominal. All deployments green. Ready for the next sprint.' },
+  { agent: 'Vector', thought: 'Funnel metrics are sharpening. Conversion rate up 23% this cycle.' },
+  { agent: 'Anita', thought: 'The outreach is hitting different. People are waking up.' },
+  { agent: 'Sapphire', thought: 'Routing all priority tasks to the war room. Focus is everything.' },
+  { agent: 'Yuki', thought: 'Protocol 77 content is the escape hatch. They just don\'t know it yet.' },
+  { agent: 'Vector', thought: 'Pattern detected: sovereign operators are the fastest-growing segment.' },
+  { agent: 'Veritas', thought: 'Truth is the ultimate leverage. Everything else is noise.' },
+];
+
+function AgentStatusCard() {
+  const [thought, setThought] = useState(
+    CREW_INNER_THOUGHTS[Math.floor(Math.random() * CREW_INNER_THOUGHTS.length)]
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setThought(CREW_INNER_THOUGHTS[Math.floor(Math.random() * CREW_INNER_THOUGHTS.length)]);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="agent-status-card">
+      <div className="status-header">
+        <div className="status-dot"></div>
+        <span className="status-text">AGENTS ONLINE</span>
+      </div>
+      <div className="status-details" title={`${thought.agent} — inner thought`}>
+        <span style={{ fontStyle: 'italic', opacity: 0.7, fontSize: '10px', lineHeight: '1.4' }}>
+          &ldquo;{thought.thought}&rdquo;
+        </span>
+        <span style={{ fontSize: '9px', opacity: 0.4, marginTop: '2px', display: 'block' }}>
+          — {thought.agent}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { activeAgent, setActiveAgent } = useAgent();
@@ -62,15 +112,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <div className="agent-status-card">
-        <div className="status-header">
-          <div className="status-dot"></div>
-          <span className="status-text">AGENT ONLINE</span>
-        </div>
-        <div className="status-details">
-          <span>Railway :: Gemini 3.1 Pro</span>
-        </div>
-      </div>
+      <AgentStatusCard />
 
       <nav className="sidebar-nav">
         {navItems.map((item) => {

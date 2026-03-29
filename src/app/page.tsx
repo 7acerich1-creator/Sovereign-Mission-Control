@@ -610,14 +610,32 @@ export default function MissionControl() {
           return (
             <div className={`crew-hero-panel ${heroFullscreen ? 'hero-fullscreen' : ''}`} style={{ "--agent-color": agent.color } as React.CSSProperties}>
               <div className="hero-controls">
-                <button className="hero-control-btn" onClick={() => {
+                <button className="hero-control-btn" onClick={async () => {
                   if (!selectedAgent) return;
                   const agentKey = selectedAgent.toLowerCase();
-                  fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`)
-                    .then(r => r.json())
-                    .then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } })
-                    .catch(() => {});
-                }} title="Refresh chat">
+                  // Find last agent message and last architect message
+                  const lastAgentMsg = [...chatMessages].reverse().find(m => m.sender === 'agent');
+                  const lastArchitectMsg = [...chatMessages].reverse().find(m => m.sender === 'architect');
+                  if (lastAgentMsg && lastArchitectMsg) {
+                    // Delete last agent response, then regenerate
+                    await fetch('/api/chat', {
+                      method: 'DELETE',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: lastAgentMsg.id }),
+                    });
+                    await fetch('/api/chat', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ agent_name: agentKey, content: lastArchitectMsg.content }),
+                    });
+                  } else {
+                    // No messages to regenerate — just refresh history
+                    fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`)
+                      .then(r => r.json())
+                      .then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } })
+                      .catch(() => {});
+                  }
+                }} title="Regenerate last response">
                   <RotateCcw size={14} />
                 </button>
                 <button className="hero-control-btn" onClick={() => setHeroFullscreen(f => !f)} title={heroFullscreen ? "Exit fullscreen" : "Expand fullscreen"}>
