@@ -114,6 +114,16 @@ export default function CrewPage() {
   const shouldAutoScroll = useRef(true);
   const PAGE_SIZE = 50;
 
+  // Lock body scroll when fullscreen chat is open
+  useEffect(() => {
+    if (chatFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [chatFullscreen]);
+
   // TTS state
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);

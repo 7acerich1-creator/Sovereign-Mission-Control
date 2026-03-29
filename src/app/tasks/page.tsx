@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   CheckSquare,
@@ -15,9 +15,12 @@ import {
   Target,
   ArrowRight,
   UserCircle,
-  ChevronDown,
   Trash2,
-  Flag
+  Flag,
+  MessageCircle,
+  Send,
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 
 type Task = {
@@ -40,7 +43,14 @@ type AgentAction = {
   created_at: string;
 };
 
-const CREW_AGENTS = ['Sapphire', 'Yuki', 'Anita', 'Alfred', 'Veritas', 'Vector'];
+const CREW_AGENTS = [
+  { name: 'Sapphire', role: 'Orchestration', color: '#4facfe' },
+  { name: 'Yuki', role: 'Creative & Content', color: '#fddb92' },
+  { name: 'Anita', role: 'Outreach & Nurture', color: '#ebedee' },
+  { name: 'Alfred', role: 'Ops & Automation', color: '#C0392B' },
+  { name: 'Veritas', role: 'Research & Truth', color: '#43e97b' },
+  { name: 'Vector', role: 'Analytics & Intel', color: '#E67E22' },
+];
 
 const AGENT_COLORS: Record<string, string> = {
   sapphire: '#4facfe',
@@ -52,12 +62,12 @@ const AGENT_COLORS: Record<string, string> = {
 };
 
 const MISSION_CATEGORIES = [
-  { name: 'Revenue', icon: '💰', description: 'Direct revenue actions toward $1.2M' },
-  { name: 'Content', icon: '📡', description: 'Firmware updates & viral transmissions' },
-  { name: 'Outreach', icon: '🎯', description: 'Lead gen, nurture, Inner Circle growth' },
-  { name: 'Infrastructure', icon: '⚙️', description: 'Systems, automation, deployment' },
-  { name: 'Research', icon: '🔍', description: 'Market intel, competitive analysis' },
-  { name: 'Analytics', icon: '📊', description: 'KPIs, funnel metrics, tracking' },
+  { name: 'Revenue', icon: '💰' },
+  { name: 'Content', icon: '📡' },
+  { name: 'Outreach', icon: '🎯' },
+  { name: 'Infrastructure', icon: '⚙️' },
+  { name: 'Research', icon: '🔍' },
+  { name: 'Analytics', icon: '📊' },
 ];
 
 export default function Tasks() {
@@ -66,6 +76,13 @@ export default function Tasks() {
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  // Task chat state
+  const [chatTask, setChatTask] = useState<Task | null>(null);
+  const [chatInput, setChatInput] = useState('');
+  const [chatResponse, setChatResponse] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
@@ -133,15 +150,39 @@ export default function Tasks() {
     await supabase.from('tasks').delete().eq('id', id);
   }
 
-  const columns: { key: Task['status']; label: string; next?: Task['status'] }[] = [
-    { key: 'To Do', label: 'MISSION QUEUE', next: 'In Progress' },
-    { key: 'In Progress', label: 'EXECUTING', next: 'Complete' },
-    { key: 'Complete', label: 'MISSION COMPLETE' },
+  async function sendTaskChat() {
+    if (!chatTask || !chatInput.trim() || chatSending) return;
+    const agent = chatTask.assigned_agent || 'sapphire';
+    setChatSending(true);
+    setChatResponse('');
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_name: agent.toLowerCase(),
+          content: `[TASK CONTEXT: "${chatTask.title}" — ${chatTask.category || 'General'} — ${chatTask.priority} priority]\n\n${chatInput.trim()}`
+        }),
+      });
+      const data = await res.json();
+      setChatResponse(data.response || 'Processing...');
+    } catch {
+      setChatResponse('Transmission interrupted. Try again.');
+    }
+    setChatInput('');
+    setChatSending(false);
+  }
+
+  const columns: { key: Task['status']; label: string; next?: Task['status']; accent: string }[] = [
+    { key: 'To Do', label: 'MISSION QUEUE', next: 'In Progress', accent: 'var(--color-accent-secondary)' },
+    { key: 'In Progress', label: 'EXECUTING', next: 'Complete', accent: 'var(--color-accent-primary)' },
+    { key: 'Complete', label: 'MISSION COMPLETE', accent: 'var(--color-accent-success)' },
   ];
 
   // Stats
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'Complete').length;
+  const inProgress = tasks.filter(t => t.status === 'In Progress').length;
   const highPriorityActive = tasks.filter(t => t.priority === 'High' && t.status !== 'Complete').length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -151,54 +192,83 @@ export default function Tasks() {
         const colTasks = tasks.filter(t => t.status === col.key);
         return (
           <div key={col.key} className="kanban-column">
-            <div className="column-header">
-              <span className="column-title">{col.label}</span>
-              <span className="column-count">{colTasks.length}</span>
+            <div className="column-header" style={{ borderBottomColor: col.accent }}>
+              <div className="column-title-row">
+                <div className="column-dot" style={{ background: col.accent, boxShadow: `0 0 8px ${col.accent}` }} />
+                <span className="column-title">{col.label}</span>
+              </div>
+              <span className="column-count" style={{ background: `${col.accent}15`, color: col.accent }}>{colTasks.length}</span>
             </div>
             <div className="column-content">
               {colTasks.map(task => {
-                const agentColor = task.assigned_agent ? AGENT_COLORS[task.assigned_agent.toLowerCase()] || 'var(--color-text-muted)' : '';
+                const agentColor = task.assigned_agent ? AGENT_COLORS[task.assigned_agent.toLowerCase()] || '#7C5CFC' : '#7C5CFC';
+                const agentInfo = CREW_AGENTS.find(a => a.name === task.assigned_agent);
                 return (
-                  <div key={task.id} className={`card task-card fade-in priority-${task.priority?.toLowerCase()}`}>
-                    <div className="task-top-row">
-                      <div className="task-priority">
-                        <div className={`priority-dot ${task.priority?.toLowerCase()}`}></div>
-                        <span>{task.priority || 'Medium'}</span>
-                      </div>
-                      {task.category && (
-                        <span className="task-category">
-                          {MISSION_CATEGORIES.find(c => c.name === task.category)?.icon} {task.category}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="task-title">{task.title}</h3>
-                    {task.description && (
-                      <p className="task-desc">{task.description}</p>
-                    )}
-                    <div className="task-footer">
-                      <div className="task-meta-left">
-                        {task.assigned_agent && (
-                          <span className="task-agent" style={{ color: agentColor, borderColor: agentColor }}>
-                            <UserCircle size={11} />
-                            {task.assigned_agent}
-                          </span>
-                        )}
-                        {task.due_date && (
-                          <span className="task-date">
-                            <Calendar size={10} />
-                            {new Date(task.due_date).toLocaleDateString()}
+                  <div key={task.id} className="task-card fade-in">
+                    <div className="task-priority-strip" style={{
+                      background: task.priority === 'High' ? 'var(--color-accent-danger)' :
+                        task.priority === 'Medium' ? 'var(--color-accent-primary)' : 'var(--color-accent-success)'
+                    }} />
+                    <div className="task-body">
+                      <div className="task-top-row">
+                        <div className="task-priority-badge" style={{
+                          color: task.priority === 'High' ? 'var(--color-accent-danger)' :
+                            task.priority === 'Medium' ? 'var(--color-accent-primary)' : 'var(--color-accent-success)',
+                          background: task.priority === 'High' ? 'rgba(217, 85, 85, 0.1)' :
+                            task.priority === 'Medium' ? 'rgba(201, 168, 76, 0.1)' : 'rgba(46, 204, 143, 0.1)',
+                        }}>
+                          <Flag size={9} />
+                          {task.priority}
+                        </div>
+                        {task.category && (
+                          <span className="task-category">
+                            {MISSION_CATEGORIES.find(c => c.name === task.category)?.icon} {task.category}
                           </span>
                         )}
                       </div>
-                      <div className="task-actions">
-                        {col.next && (
-                          <button className="task-action-btn move" onClick={() => moveTask(task.id, col.next!)} title={`Move to ${col.next}`}>
-                            <ArrowRight size={13} />
+                      <h3 className="task-title">{task.title}</h3>
+                      {task.description && <p className="task-desc">{task.description}</p>}
+
+                      {/* Agent Assignment Block */}
+                      {task.assigned_agent && (
+                        <div className="task-agent-block" style={{ borderColor: `${agentColor}30` }}>
+                          <div className="task-agent-avatar" style={{ background: `${agentColor}20`, color: agentColor }}>
+                            <UserCircle size={14} />
+                          </div>
+                          <div className="task-agent-info">
+                            <span className="task-agent-name" style={{ color: agentColor }}>{task.assigned_agent}</span>
+                            <span className="task-agent-role">{agentInfo?.role || ''}</span>
+                          </div>
+                          <button
+                            className="task-chat-btn"
+                            style={{ color: agentColor, borderColor: `${agentColor}30` }}
+                            onClick={() => { setChatTask(task); setChatResponse(''); }}
+                            title={`Message ${task.assigned_agent}`}
+                          >
+                            <MessageCircle size={12} />
                           </button>
-                        )}
-                        <button className="task-action-btn delete" onClick={() => deleteTask(task.id)} title="Delete">
-                          <Trash2 size={12} />
-                        </button>
+                        </div>
+                      )}
+
+                      <div className="task-footer">
+                        <div className="task-meta-left">
+                          {task.due_date && (
+                            <span className="task-date">
+                              <Calendar size={10} />
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="task-actions">
+                          {col.next && (
+                            <button className="task-action-btn move" onClick={() => moveTask(task.id, col.next!)} title={`Move to ${col.next}`}>
+                              <ArrowRight size={13} />
+                            </button>
+                          )}
+                          <button className="task-action-btn delete" onClick={() => deleteTask(task.id)} title="Delete">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -221,15 +291,13 @@ export default function Tasks() {
     <div className="actions-list">
       {actions.map((action, idx) => (
         <div key={action.id} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
-          <div className="action-icon">
+          <div className="action-icon-wrap">
             <Activity size={18} />
           </div>
           <div className="action-body">
             <div className="action-header">
               <span className="action-type">{action.event_type}</span>
-              <span className="action-time">
-                {new Date(action.created_at).toLocaleString()}
-              </span>
+              <span className="action-time">{new Date(action.created_at).toLocaleString()}</span>
             </div>
             {action.title && <p className="action-title">{action.title}</p>}
             <p className="action-description">{action.description}</p>
@@ -239,11 +307,66 @@ export default function Tasks() {
       {actions.length === 0 && (
         <div className="empty-state">
           <Bot size={48} className="empty-icon" />
-          <p>NO AGENT ACTIONS LOGGED</p>
+          <p>NO CREW ACTIONS LOGGED YET</p>
+          <p style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>Agent activity will appear here as the crew executes.</p>
         </div>
       )}
     </div>
   );
+
+  // Task chat panel
+  const renderTaskChat = () => {
+    if (!chatTask) return null;
+    const agent = chatTask.assigned_agent || 'Sapphire';
+    const agentColor = AGENT_COLORS[agent.toLowerCase()] || '#7C5CFC';
+    return (
+      <div className="task-chat-overlay fade-in">
+        <div className="task-chat-panel">
+          <div className="task-chat-header" style={{ borderBottomColor: `${agentColor}30` }}>
+            <button className="task-chat-back" onClick={() => setChatTask(null)}><ArrowLeft size={16} /></button>
+            <div className="task-chat-agent-info">
+              <UserCircle size={18} style={{ color: agentColor }} />
+              <div>
+                <span className="task-chat-agent-name" style={{ color: agentColor }}>{agent}</span>
+                <span className="task-chat-task-title">{chatTask.title}</span>
+              </div>
+            </div>
+          </div>
+          <div className="task-chat-body" ref={chatRef}>
+            <div className="task-chat-context">
+              <span className="context-label">TASK CONTEXT</span>
+              <p>{chatTask.title}</p>
+              {chatTask.description && <p className="context-desc">{chatTask.description}</p>}
+              <div className="context-meta">
+                {chatTask.category && <span>{MISSION_CATEGORIES.find(c => c.name === chatTask.category)?.icon} {chatTask.category}</span>}
+                <span>{chatTask.priority} Priority</span>
+              </div>
+            </div>
+            {chatResponse && (
+              <div className="task-chat-response" style={{ borderLeftColor: agentColor }}>
+                <span className="response-agent" style={{ color: agentColor }}>{agent.toUpperCase()}</span>
+                <p>{chatResponse}</p>
+              </div>
+            )}
+          </div>
+          <div className="task-chat-input-bar">
+            <input
+              type="text"
+              placeholder={`Ask ${agent} about this task...`}
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendTaskChat()}
+              className="task-chat-input"
+              autoFocus
+            />
+            <button className="task-chat-send" style={{ background: `${agentColor}20`, borderColor: `${agentColor}30`, color: agentColor }} onClick={sendTaskChat} disabled={chatSending || !chatInput.trim()}>
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="fade-in">
@@ -252,56 +375,49 @@ export default function Tasks() {
           <h1 className="h1-display">TASKS & PROJECTS</h1>
           <p className="eyebrow text-secondary">MISSION EXECUTION ARCHITECTURE :: $1.2M OBJECTIVE</p>
         </div>
-
         <div className="tab-switcher">
-          <button
-            className={`tab-btn ${activeTab === 'Human' ? 'active' : ''}`}
-            onClick={() => setActiveTab('Human')}
-          >
-            <User size={16} />
+          <button className={`tab-btn ${activeTab === 'Human' ? 'active' : ''}`} onClick={() => setActiveTab('Human')}>
+            <Target size={16} />
             <span>MISSION TASKS</span>
           </button>
-          <button
-            className={`tab-btn ${activeTab === 'AI' ? 'active' : ''}`}
-            onClick={() => setActiveTab('AI')}
-          >
+          <button className={`tab-btn ${activeTab === 'AI' ? 'active' : ''}`} onClick={() => setActiveTab('AI')}>
             <Bot size={16} />
             <span>CREW ACTIONS</span>
           </button>
         </div>
       </header>
 
-      {/* STAT CARDS */}
       {activeTab === 'Human' && (
         <>
+          {/* STAT CARDS */}
           <section className="metrics-grid">
-            <div className="card stat-card">
+            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-secondary)' }}>
               <div className="stat-content">
                 <span className="stat-label">TOTAL MISSIONS</span>
                 <span className="stat-value">{totalTasks}</span>
               </div>
             </div>
-            <div className="card stat-card">
+            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-primary)' }}>
               <div className="stat-content">
-                <span className="stat-label">COMPLETED</span>
-                <span className="stat-value" style={{ color: 'var(--color-accent-success)' }}>{completedTasks}</span>
+                <span className="stat-label">IN PROGRESS</span>
+                <span className="stat-value" style={{ color: 'var(--color-accent-primary)' }}>{inProgress}</span>
               </div>
             </div>
-            <div className="card stat-card">
+            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-danger)' }}>
               <div className="stat-content">
                 <span className="stat-label">HIGH PRIORITY</span>
                 <span className="stat-value" style={{ color: 'var(--color-accent-danger)' }}>{highPriorityActive}</span>
               </div>
             </div>
-            <div className="card stat-card">
+            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-success)' }}>
               <div className="stat-content">
-                <span className="stat-label">COMPLETION RATE</span>
-                <span className="stat-value">{completionRate}%</span>
+                <span className="stat-label">COMPLETION</span>
+                <span className="stat-value" style={{ color: 'var(--color-accent-success)' }}>{completionRate}%</span>
               </div>
             </div>
           </section>
 
-          {/* ACTIONS BAR */}
+          {/* CREATE BUTTON */}
           <div className="actions-bar">
             <button className="create-btn" onClick={() => setShowForm(v => !v)}>
               {showForm ? <X size={14} /> : <Plus size={14} />}
@@ -311,8 +427,11 @@ export default function Tasks() {
 
           {/* NEW TASK FORM */}
           {showForm && (
-            <div className="card task-form fade-in">
-              <h3 className="form-title">CREATE MISSION TASK</h3>
+            <div className="card task-form fade-in" style={{ borderLeft: '3px solid var(--color-accent-secondary)' }}>
+              <h3 className="form-title">
+                <Target size={14} style={{ color: 'var(--color-accent-secondary)' }} />
+                CREATE MISSION TASK
+              </h3>
               <div className="form-grid">
                 <div className="form-field full-width">
                   <label>OBJECTIVE</label>
@@ -361,7 +480,7 @@ export default function Tasks() {
                   <label>ASSIGN CREW MEMBER</label>
                   <select className="form-select" value={newAgent} onChange={e => setNewAgent(e.target.value)}>
                     <option value="">Unassigned</option>
-                    {CREW_AGENTS.map(a => <option key={a} value={a}>{a}</option>)}
+                    {CREW_AGENTS.map(a => <option key={a.name} value={a.name}>{a.name} — {a.role}</option>)}
                   </select>
                 </div>
                 <div className="form-field">
@@ -370,7 +489,7 @@ export default function Tasks() {
                 </div>
               </div>
               <button className="submit-btn" onClick={createTask} disabled={!newTitle.trim()}>
-                <Target size={14} />
+                <Zap size={14} />
                 CREATE MISSION TASK
               </button>
             </div>
@@ -379,8 +498,9 @@ export default function Tasks() {
       )}
 
       {activeTab === 'Human' ? renderKanban() : renderAgentActions()}
+      {renderTaskChat()}
 
-      <style jsx>{`
+      <style jsx global>{`
         .tab-switcher {
           display: flex;
           background: rgba(255, 255, 255, 0.03);
@@ -392,7 +512,7 @@ export default function Tasks() {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 8px 16px;
+          padding: 10px 20px;
           border-radius: 8px;
           border: none;
           background: transparent;
@@ -402,260 +522,140 @@ export default function Tasks() {
           font-weight: 700;
           cursor: pointer;
           transition: var(--transition-fast);
+          letter-spacing: 0.06em;
         }
         .tab-btn.active {
           background: var(--color-bg-surface);
           color: var(--color-accent-primary);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
 
-        .actions-bar {
-          display: flex;
-          justify-content: flex-end;
-          margin-bottom: 20px;
-        }
+        .actions-bar { display: flex; justify-content: flex-end; margin-bottom: 24px; }
         .create-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 20px;
-          border-radius: 10px;
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 24px; border-radius: 10px;
           border: 1px solid rgba(124, 92, 252, 0.3);
           background: rgba(124, 92, 252, 0.08);
           color: var(--color-accent-secondary);
-          font-family: var(--font-mono);
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          cursor: pointer;
-          transition: var(--transition-fast);
+          font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
         }
-        .create-btn:hover {
-          background: rgba(124, 92, 252, 0.15);
-          border-color: rgba(124, 92, 252, 0.5);
-        }
+        .create-btn:hover { background: rgba(124, 92, 252, 0.15); border-color: rgba(124, 92, 252, 0.5); }
 
         /* FORM */
-        .task-form {
-          padding: 28px;
-          margin-bottom: 24px;
-          border: 1px solid rgba(124, 92, 252, 0.15);
-        }
+        .task-form { padding: 28px; margin-bottom: 28px; }
         .form-title {
-          font-family: var(--font-mono);
-          font-size: 12px;
-          letter-spacing: 0.12em;
-          color: var(--color-accent-secondary);
-          margin-bottom: 20px;
+          display: flex; align-items: center; gap: 8px;
+          font-family: var(--font-mono); font-size: 12px;
+          letter-spacing: 0.12em; color: var(--color-accent-secondary); margin-bottom: 24px;
         }
-        .form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 20px;
-        }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .full-width { grid-column: 1 / -1; }
         .form-field label {
-          display: block;
-          font-family: var(--font-mono);
-          font-size: 9px;
-          font-weight: 700;
-          letter-spacing: 0.12em;
-          color: var(--color-text-muted);
-          margin-bottom: 8px;
+          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.12em; color: var(--color-text-muted); margin-bottom: 8px;
         }
         .form-input, .form-textarea, .form-select {
-          width: 100%;
-          background: var(--color-bg-deepest);
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 10px 14px;
-          color: var(--color-text-primary);
-          font-size: 13px;
-          font-family: inherit;
-          outline: none;
-          transition: border-color 0.2s;
+          width: 100%; background: var(--color-bg-deepest); border: 1px solid var(--border-color);
+          border-radius: 8px; padding: 10px 14px; color: var(--color-text-primary);
+          font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s;
         }
-        .form-input:focus, .form-textarea:focus, .form-select:focus {
-          border-color: var(--color-accent-secondary);
-        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--color-accent-secondary); }
         .form-textarea { resize: vertical; }
         .form-select { cursor: pointer; }
-
-        .priority-picker {
-          display: flex;
-          gap: 8px;
-        }
+        .priority-picker { display: flex; gap: 8px; }
         .prio-btn {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          background: transparent;
-          color: var(--color-text-muted);
-          font-size: 11px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: var(--transition-fast);
+          display: flex; align-items: center; gap: 5px; padding: 8px 14px;
+          border-radius: 8px; border: 1px solid var(--border-color);
+          background: transparent; color: var(--color-text-muted);
+          font-size: 11px; font-weight: 600; cursor: pointer; transition: var(--transition-fast);
         }
         .prio-btn.high.active { background: rgba(217, 85, 85, 0.12); color: var(--color-accent-danger); border-color: var(--color-accent-danger); }
         .prio-btn.medium.active { background: rgba(201, 168, 76, 0.12); color: var(--color-accent-primary); border-color: var(--color-accent-primary); }
         .prio-btn.low.active { background: rgba(46, 204, 143, 0.1); color: var(--color-accent-success); border-color: var(--color-accent-success); }
-
         .submit-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 24px;
-          border-radius: 10px;
-          border: none;
-          background: var(--color-accent-secondary);
-          color: white;
-          font-family: var(--font-mono);
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          cursor: pointer;
-          transition: var(--transition-fast);
+          display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px;
+          border: none; background: var(--color-accent-secondary); color: white;
+          font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
         }
         .submit-btn:hover:not(:disabled) { filter: brightness(1.15); }
         .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         /* KANBAN */
-        .kanban-board {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 24px;
-        }
-        .kanban-column {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
+        .kanban-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .kanban-column { display: flex; flex-direction: column; gap: 12px; }
         .column-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0 8px;
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 14px 16px; background: var(--color-bg-surface); border-radius: 12px;
+          border: 1px solid var(--border-color); border-bottom: 2px solid;
         }
+        .column-title-row { display: flex; align-items: center; gap: 10px; }
+        .column-dot { width: 8px; height: 8px; border-radius: 50%; }
         .column-title {
-          font-size: 11px;
-          font-weight: 800;
-          color: var(--color-text-muted);
-          letter-spacing: 0.1em;
-          font-family: var(--font-mono);
+          font-size: 11px; font-weight: 800; color: var(--color-text-primary);
+          letter-spacing: 0.12em; font-family: var(--font-mono);
         }
         .column-count {
-          font-size: 10px;
-          font-family: var(--font-mono);
-          background: rgba(255, 255, 255, 0.05);
-          padding: 2px 8px;
-          border-radius: 10px;
-          color: var(--color-text-secondary);
+          font-size: 11px; font-family: var(--font-mono); font-weight: 700;
+          padding: 3px 10px; border-radius: 10px;
         }
-        .column-content {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
+        .column-content { display: flex; flex-direction: column; gap: 10px; }
 
         /* TASK CARDS */
         .task-card {
-          padding: 20px;
+          display: flex; border-radius: 12px; overflow: hidden;
+          background: var(--color-bg-surface); border: 1px solid var(--border-color);
+          transition: var(--transition-normal);
         }
-        .task-top-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 10px;
-        }
-        .task-priority {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 10px;
-          font-family: var(--font-mono);
-          text-transform: uppercase;
-          color: var(--color-text-muted);
-        }
-        .priority-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .priority-dot.high { background: var(--color-accent-danger); box-shadow: 0 0 8px var(--color-accent-danger); }
-        .priority-dot.medium { background: var(--color-accent-primary); }
-        .priority-dot.low { background: var(--color-accent-success); }
+        .task-card:hover { border-color: rgba(124, 92, 252, 0.25); transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3); }
+        .task-priority-strip { width: 4px; flex-shrink: 0; }
+        .task-body { flex: 1; padding: 18px; }
 
+        .task-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .task-priority-badge {
+          display: flex; align-items: center; gap: 5px;
+          font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.08em; padding: 4px 10px; border-radius: 6px; text-transform: uppercase;
+        }
         .task-category {
-          font-size: 10px;
-          font-family: var(--font-mono);
-          color: var(--color-text-muted);
-          background: rgba(255, 255, 255, 0.04);
-          padding: 3px 8px;
-          border-radius: 4px;
+          font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted);
+          background: rgba(255, 255, 255, 0.04); padding: 3px 8px; border-radius: 4px;
         }
+        .task-title { font-size: 14px; font-weight: 700; line-height: 1.4; margin-bottom: 6px; color: var(--color-text-primary); }
+        .task-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 10px; }
 
-        .task-title {
-          font-size: 14px;
-          font-weight: 600;
-          line-height: 1.4;
-          margin-bottom: 6px;
-          color: var(--color-text-primary);
+        /* Agent Assignment Block */
+        .task-agent-block {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; border-radius: 8px; border: 1px solid;
+          background: rgba(255, 255, 255, 0.02); margin-bottom: 12px;
         }
-        .task-desc {
-          font-size: 12px;
-          color: var(--color-text-muted);
-          line-height: 1.5;
-          margin-bottom: 12px;
+        .task-agent-avatar {
+          width: 28px; height: 28px; border-radius: 6px;
+          display: flex; align-items: center; justify-content: center;
         }
+        .task-agent-info { flex: 1; }
+        .task-agent-name { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
+        .task-agent-role { display: block; font-size: 10px; color: var(--color-text-muted); }
+        .task-chat-btn {
+          display: flex; align-items: center; padding: 6px 8px;
+          border-radius: 6px; border: 1px solid; background: transparent;
+          cursor: pointer; transition: var(--transition-fast);
+        }
+        .task-chat-btn:hover { background: rgba(255, 255, 255, 0.06); }
 
-        .task-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 8px;
-        }
-        .task-meta-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .task-agent {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 10px;
-          font-family: var(--font-mono);
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 4px;
-          border: 1px solid;
-          opacity: 0.8;
-        }
+        .task-footer { display: flex; justify-content: space-between; align-items: center; }
+        .task-meta-left { display: flex; align-items: center; gap: 10px; }
         .task-date {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 10px;
-          font-family: var(--font-mono);
-          color: var(--color-text-muted);
+          display: flex; align-items: center; gap: 4px;
+          font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted);
         }
-
-        .task-actions {
-          display: flex;
-          gap: 4px;
-          opacity: 0;
-          transition: opacity 0.2s;
-        }
+        .task-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
         .task-card:hover .task-actions { opacity: 1; }
-
         .task-action-btn {
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 5px;
-          padding: 4px 6px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
+          background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 5px; padding: 5px 7px; cursor: pointer; display: flex; align-items: center;
           transition: var(--transition-fast);
         }
         .task-action-btn.move { color: var(--color-accent-success); }
@@ -664,47 +664,88 @@ export default function Tasks() {
         .task-action-btn.delete:hover { color: var(--color-accent-danger); background: rgba(217, 85, 85, 0.1); }
 
         .add-task-ghost {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px;
-          border: 1px dashed var(--border-color);
-          border-radius: 12px;
-          color: var(--color-text-muted);
-          font-size: 12px;
-          cursor: pointer;
-          transition: var(--transition-fast);
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 14px; border: 1px dashed var(--border-color); border-radius: 12px;
+          color: var(--color-text-muted); font-size: 12px; cursor: pointer;
+          transition: var(--transition-fast); font-family: var(--font-mono);
         }
-        .add-task-ghost:hover {
-          border-color: var(--color-accent-secondary);
-          color: var(--color-accent-secondary);
-          background: rgba(124, 92, 252, 0.05);
+        .add-task-ghost:hover { border-color: var(--color-accent-secondary); color: var(--color-accent-secondary); background: rgba(124, 92, 252, 0.05); }
+
+        /* TASK CHAT OVERLAY */
+        .task-chat-overlay {
+          position: fixed; top: 0; right: 0; bottom: 0; width: 420px;
+          z-index: 9999; background: rgba(5, 5, 8, 0.97); backdrop-filter: blur(20px);
+          border-left: 1px solid var(--border-color);
+          display: flex; flex-direction: column;
         }
+        .task-chat-panel { display: flex; flex-direction: column; height: 100%; }
+        .task-chat-header {
+          display: flex; align-items: center; gap: 14px;
+          padding: 20px; border-bottom: 1px solid;
+        }
+        .task-chat-back {
+          background: none; border: none; color: var(--color-text-muted);
+          cursor: pointer; display: flex; align-items: center; padding: 4px;
+        }
+        .task-chat-back:hover { color: var(--color-text-primary); }
+        .task-chat-agent-info { display: flex; align-items: center; gap: 10px; }
+        .task-chat-agent-name {
+          display: block; font-family: var(--font-mono); font-size: 12px;
+          font-weight: 700; letter-spacing: 0.08em;
+        }
+        .task-chat-task-title {
+          display: block; font-size: 11px; color: var(--color-text-muted);
+          max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .task-chat-body { flex: 1; overflow-y: auto; padding: 20px; }
+        .task-chat-context {
+          padding: 16px; border-radius: 10px; background: rgba(124, 92, 252, 0.06);
+          border: 1px solid rgba(124, 92, 252, 0.12); margin-bottom: 20px;
+        }
+        .context-label {
+          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.12em; color: var(--color-accent-secondary); margin-bottom: 8px;
+        }
+        .task-chat-context p { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+        .context-desc { font-size: 12px !important; font-weight: 400 !important; color: var(--color-text-secondary) !important; margin-top: 6px; }
+        .context-meta {
+          display: flex; gap: 12px; margin-top: 10px;
+          font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted);
+        }
+        .task-chat-response {
+          padding: 16px; border-radius: 10px; background: rgba(255, 255, 255, 0.03);
+          border-left: 3px solid; margin-bottom: 12px;
+        }
+        .response-agent {
+          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.1em; margin-bottom: 8px;
+        }
+        .task-chat-response p { font-size: 13px; line-height: 1.7; color: var(--color-text-secondary); }
+        .task-chat-input-bar {
+          display: flex; gap: 8px; padding: 16px 20px;
+          border-top: 1px solid var(--border-color); background: rgba(5, 5, 8, 0.8);
+        }
+        .task-chat-input {
+          flex: 1; background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;
+          color: var(--color-text-primary); padding: 10px 14px; font-size: 13px;
+          font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .task-chat-input:focus { border-color: rgba(124, 92, 252, 0.4); }
+        .task-chat-input::placeholder { color: rgba(232, 228, 216, 0.2); }
+        .task-chat-send {
+          border: 1px solid; border-radius: 8px; padding: 8px 14px;
+          cursor: pointer; display: flex; align-items: center; transition: var(--transition-fast);
+        }
+        .task-chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
 
         /* AGENT ACTIONS */
-        .actions-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          max-width: 800px;
-        }
-        .action-card {
-          display: flex;
-          gap: 20px;
-          padding: 20px;
-        }
-        .action-icon {
-          width: 40px;
-          height: 40px;
-          background: rgba(124, 92, 252, 0.1);
-          color: var(--color-accent-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 10px;
-          border: 1px solid rgba(124, 92, 252, 0.2);
-          flex-shrink: 0;
+        .actions-list { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
+        .action-card { display: flex; gap: 20px; padding: 20px; }
+        .action-icon-wrap {
+          width: 40px; height: 40px; background: rgba(124, 92, 252, 0.1);
+          color: var(--color-accent-secondary); display: flex; align-items: center;
+          justify-content: center; border-radius: 10px; border: 1px solid rgba(124, 92, 252, 0.2); flex-shrink: 0;
         }
         .action-body { flex: 1; }
         .action-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
@@ -714,19 +755,15 @@ export default function Tasks() {
         .action-description { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
 
         .empty-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 100px 0;
-          color: var(--color-text-muted);
-          border: 1px dashed var(--border-color);
-          border-radius: 16px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          padding: 100px 0; color: var(--color-text-muted);
+          border: 1px dashed var(--border-color); border-radius: 16px;
         }
         .empty-icon { opacity: 0.2; margin-bottom: 24px; }
 
         @media (max-width: 900px) {
           .kanban-board { grid-template-columns: 1fr; }
+          .task-chat-overlay { width: 100%; }
         }
       `}</style>
     </div>

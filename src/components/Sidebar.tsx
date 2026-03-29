@@ -17,8 +17,11 @@ import {
   DollarSign,
   Radio,
   Package,
-  Users
+  Users,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from '@/lib/ThemeContext';
 
 const navItems = [
   { name: 'Command Center', href: '/', icon: LayoutDashboard },
@@ -99,6 +102,7 @@ function AgentStatusCard() {
 export default function Sidebar() {
   const pathname = usePathname();
   const { activeAgent, setActiveAgent } = useAgent();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className="sidebar">
@@ -154,6 +158,20 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
+        <button
+          onClick={toggleTheme}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+            padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
+            background: 'rgba(255, 255, 255, 0.03)', color: 'var(--color-text-muted)',
+            cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '10px',
+            fontWeight: 700, letterSpacing: '0.08em', marginBottom: '16px',
+            transition: 'var(--transition-fast)',
+          }}
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          {theme === 'dark' ? 'LIGHT MODE' : 'DARK MODE'}
+        </button>
         <div className="xp-container">
           <div className="xp-header">
             <span className="xp-label">LEVEL 7 — FIELD AGENT</span>

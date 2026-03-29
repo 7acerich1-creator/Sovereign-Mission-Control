@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 };
 
 import { AgentProvider } from "@/lib/AgentContext";
+import { ThemeProvider } from "@/lib/ThemeContext";
 
 export default function RootLayout({
   children,
@@ -32,12 +33,14 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full antialiased`}
     >
       <body className="app-container">
-        <AgentProvider>
-          <Sidebar />
-          <main className="main-content">
-            {children}
-          </main>
-        </AgentProvider>
+        <ThemeProvider>
+          <AgentProvider>
+            <Sidebar />
+            <main className="main-content">
+              {children}
+            </main>
+          </AgentProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
