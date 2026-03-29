@@ -1275,12 +1275,13 @@ export default function MissionControl() {
         }
 
         .hero-controls {
-          position: absolute;
-          top: 16px;
-          right: 16px;
+          position: sticky;
+          top: 0;
           display: flex;
+          justify-content: flex-end;
           gap: 6px;
           z-index: 10;
+          padding: 0 0 8px 0;
         }
         .hero-control-btn {
           background: rgba(255, 255, 255, 0.05);
@@ -1313,9 +1314,13 @@ export default function MissionControl() {
           padding: 32px;
           overflow-y: auto;
           animation: none;
+          display: flex;
+          flex-direction: column;
         }
         .hero-fullscreen .hero-activity-feed {
-          max-height: calc(100vh - 380px);
+          flex: 1;
+          max-height: none;
+          overflow-y: auto;
         }
 
         .hero-top {

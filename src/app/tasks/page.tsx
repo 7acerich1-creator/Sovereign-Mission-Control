@@ -72,6 +72,16 @@ const MISSION_CATEGORIES = [
   { name: 'Analytics', icon: '📊' },
 ];
 
+// Auto-assign agent based on task category
+const CATEGORY_AGENT_MAP: Record<string, string> = {
+  Revenue: 'Sapphire',
+  Content: 'Yuki',
+  Outreach: 'Anita',
+  Infrastructure: 'Alfred',
+  Research: 'Veritas',
+  Analytics: 'Vector',
+};
+
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState<'Human' | 'AI'>('Human');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -132,12 +142,14 @@ export default function Tasks() {
 
   async function createTask() {
     if (!newTitle.trim()) return;
+    // Auto-assign agent if none selected
+    const assignedAgent = newAgent || CATEGORY_AGENT_MAP[newCategory] || null;
     await supabase.from('tasks').insert({
       title: newTitle.trim(),
       description: newDesc.trim() || null,
       status: 'To Do',
       priority: newPriority,
-      assigned_agent: newAgent || null,
+      assigned_agent: assignedAgent,
       category: newCategory,
       due_date: newDueDate || null,
     });
@@ -167,12 +179,18 @@ export default function Tasks() {
 
   async function saveEdit() {
     if (!editTask) return;
-    await supabase.from('tasks').update({
+    const { error } = await supabase.from('tasks').update({
       assigned_agent: editAgent || null,
       priority: editPriority,
       category: editCategory,
     }).eq('id', editTask.id);
+    if (error) {
+      console.error('Task update failed:', error);
+      return;
+    }
     setEditTask(null);
+    // Force refresh to show changes immediately
+    fetchData();
   }
 
   async function sendTaskChat() {
@@ -505,14 +523,18 @@ export default function Tasks() {
                 </div>
                 <div className="form-field">
                   <label>MISSION CATEGORY</label>
-                  <select className="form-select" value={newCategory} onChange={e => setNewCategory(e.target.value)}>
+                  <select className="form-select" value={newCategory} onChange={e => {
+                    const cat = e.target.value;
+                    setNewCategory(cat);
+                    if (!newAgent && CATEGORY_AGENT_MAP[cat]) setNewAgent(CATEGORY_AGENT_MAP[cat]);
+                  }}>
                     {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
                   </select>
                 </div>
                 <div className="form-field">
                   <label>ASSIGN CREW MEMBER</label>
                   <select className="form-select" value={newAgent} onChange={e => setNewAgent(e.target.value)}>
-                    <option value="">Unassigned</option>
+                    <option value="">Auto-assign ({CATEGORY_AGENT_MAP[newCategory] || 'Sapphire'})</option>
                     {CREW_AGENTS.map(a => <option key={a.name} value={a.name}>{a.name} — {a.role}</option>)}
                   </select>
                 </div>
@@ -563,7 +585,14 @@ export default function Tasks() {
               </div>
               <div className="edit-field">
                 <label>MISSION CATEGORY</label>
-                <select className="form-select" value={editCategory} onChange={e => setEditCategory(e.target.value)}>
+                <select className="form-select" value={editCategory} onChange={e => {
+                  const cat = e.target.value;
+                  setEditCategory(cat);
+                  // Auto-suggest agent when category changes and no agent assigned
+                  if (!editAgent && CATEGORY_AGENT_MAP[cat]) {
+                    setEditAgent(CATEGORY_AGENT_MAP[cat]);
+                  }
+                }}>
                   {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
                 </select>
               </div>

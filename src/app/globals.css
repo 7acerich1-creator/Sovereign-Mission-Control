@@ -99,6 +99,124 @@
   opacity: 0.03;
 }
 
+/* Light mode: chat panels, messages, inputs */
+[data-theme="light"] .crew-chat-panel,
+[data-theme="light"] .crew-hero-panel {
+  background: #FFFFFF;
+  border-color: rgba(26, 26, 46, 0.1);
+}
+
+[data-theme="light"] .crew-chat-header,
+[data-theme="light"] .hero-controls {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .crew-chat-title,
+[data-theme="light"] .crew-chat-badge {
+  color: var(--color-text-primary);
+}
+
+[data-theme="light"] .crew-msg-bubble {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .crew-msg-architect .crew-msg-bubble {
+  background: rgba(124, 92, 252, 0.08);
+  border-color: rgba(124, 92, 252, 0.15);
+}
+
+[data-theme="light"] .crew-msg-text {
+  color: var(--color-text-primary);
+}
+
+[data-theme="light"] .crew-msg-agent-tag {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="light"] .crew-msg-meta {
+  color: var(--color-text-muted);
+}
+
+[data-theme="light"] .crew-chat-input-wrap {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .crew-chat-input {
+  background: #FFFFFF;
+  color: var(--color-text-primary);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .crew-chat-empty {
+  color: var(--color-text-muted);
+}
+
+[data-theme="light"] .crew-chat-loading {
+  color: var(--color-accent-secondary);
+}
+
+/* Light mode: hero chat on main page */
+[data-theme="light"] .hero-activity-feed {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .hero-msg-bubble {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--color-text-primary);
+}
+
+[data-theme="light"] .hero-msg-architect .hero-msg-bubble {
+  background: rgba(124, 92, 252, 0.08);
+}
+
+[data-theme="light"] .hero-input {
+  background: #FFFFFF;
+  color: var(--color-text-primary);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .hero-control-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--color-text-secondary);
+}
+
+/* Light mode: form elements */
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-textarea,
+[data-theme="light"] .form-select {
+  background: #FFFFFF;
+  color: var(--color-text-primary);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Light mode: stat cards */
+[data-theme="light"] .stat-card {
+  background: #FFFFFF;
+}
+
+/* Light mode: page headers */
+[data-theme="light"] .h1-display {
+  color: var(--color-text-primary);
+}
+
+/* Light mode: task cards */
+[data-theme="light"] .task-card {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .task-title {
+  color: var(--color-text-primary);
+}
+
+[data-theme="light"] .kanban-column {
+  background: rgba(0, 0, 0, 0.02);
+}
+
 /* Base reset */
 * {
   margin: 0;
