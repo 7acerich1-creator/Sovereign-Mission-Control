@@ -17,34 +17,34 @@ import { NextResponse } from 'next/server';
 // Update these with your preferred voices
 const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similarity: number }> = {
   yuki: {
-    voiceId: 'MF3mGyEYCl7XYWbV9V6O',  // "Elli" — emotional, young female. Expressive, creative energy.
-    stability: 0.30,       // low = more expressive, matches Yuki's creative fire
-    similarity: 0.75,
+    voiceId: 'pFZP5JQG7iQjIQuC4Bku',  // "Lily" — raspy, young female. Creative edge with texture.
+    stability: 0.30,       // low = expressive, matches creative fire
+    similarity: 0.78,
   },
   sapphire: {
-    voiceId: '21m00Tcm4TlvDq8ikWAM',  // "Rachel" — calm, clean American female. Crisp, clear, uncompromising.
-    stability: 0.50,       // balanced = soft clarity without wavering
-    similarity: 0.90,      // high = precise, consistent tone
+    voiceId: 'Xb7hH8MSUJpSbSDYk0k2',  // "Alice" — confident female. Clean, commanding, American.
+    stability: 0.55,       // controlled but not stiff
+    similarity: 0.90,      // high precision, crisp delivery
   },
   anita: {
-    voiceId: 'XrExE9yKIg1WjnnlVkGX',  // "Matilda" — warm, young female. Nurturing, strategic warmth.
-    stability: 0.45,       // slightly fluid for warmth
-    similarity: 0.85,
+    voiceId: 'XrExE9yKIg1WjnnlVkGX',  // "Matilda" — warm female. Kept, but tuned colder/sharper.
+    stability: 0.62,       // raised = more controlled, less warmth, more edge
+    similarity: 0.92,      // raised = sharper, more precise articulation
   },
   alfred: {
-    voiceId: 'VR6AewLTigWG4xSOukaG',  // "Arnold" — crisp, middle-aged male. Surgical precision, no fluff.
-    stability: 0.65,       // high stability = controlled, operational
-    similarity: 0.90,
-  },
-  veritas: {
-    voiceId: 'TxGEqnHWrfWFTfGW9XjX',  // "Josh" — deep, young male. Weight and authority for truth engine.
-    stability: 0.60,       // steady = measured, deliberate delivery
+    voiceId: 'onwK4e9ZLuTAKqWW03F9',  // "Daniel" — deep, natural male. Human warmth with authority.
+    stability: 0.58,       // balanced = authoritative without robotic
     similarity: 0.85,
   },
+  veritas: {
+    voiceId: 'nPczCjzI2devNBz1zQrb',  // "Brian" — deep male. Gravitas, philosophical weight.
+    stability: 0.55,       // measured, deliberate
+    similarity: 0.82,
+  },
   vector: {
-    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',  // "Liam" — neutral, young male. Sharp, data-driven. (User: "pretty close")
-    stability: 0.45,       // tuned slightly more dynamic
-    similarity: 0.88,      // bumped for sharper articulation
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',  // "Liam" — perfect as-is. Sharp, data-driven.
+    stability: 0.45,
+    similarity: 0.88,
   },
 };
 

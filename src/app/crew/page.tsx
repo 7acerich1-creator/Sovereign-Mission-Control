@@ -56,7 +56,7 @@ const CREW: CrewMember[] = [
     name: "Alfred",
     role: "Operations & Automation",
     codename: "THE SCALPEL",
-    color: "#ff9a9e",
+    color: "#C0392B",
     avatar: "/crew/alfred.png",
     bio: "Operational precision instrument. Alfred handles deployment, infrastructure, scheduling, and system maintenance with zero-tolerance-for-error execution protocols.",
     capabilities: ["Deployment management", "Infrastructure monitoring", "Task scheduling", "System maintenance"],
@@ -74,7 +74,7 @@ const CREW: CrewMember[] = [
     name: "Vector",
     role: "Analytics & Intelligence",
     codename: "THE FUNNEL",
-    color: "#fa709a",
+    color: "#E67E22",
     avatar: "/crew/vector.png",
     bio: "Revenue intelligence and analytics architect. Vector tracks every conversion, maps every funnel stage, and surfaces the metrics that drive sovereign growth.",
     capabilities: ["Revenue analytics", "Funnel optimization", "KPI dashboards", "Predictive modeling"],
@@ -85,9 +85,9 @@ const AGENT_COLORS: Record<string, string> = {
   yuki: "#fddb92",
   sapphire: "#4facfe",
   anita: "#ebedee",
-  alfred: "#ff9a9e",
+  alfred: "#C0392B",
   veritas: "#43e97b",
-  vector: "#fa709a",
+  vector: "#E67E22",
 };
 
 type GroupMessage = {
@@ -411,11 +411,12 @@ export default function CrewPage() {
         <div style={{
           position: "relative",
           borderRadius: 16,
-          overflow: "hidden",
           border: "1px solid rgba(124, 92, 252, 0.15)",
           background: "rgba(5, 5, 8, 0.8)",
           boxShadow: "0 0 60px rgba(124, 92, 252, 0.08)",
         }}>
+          {/* Image wrapper with overflow hidden for border-radius clipping */}
+          <div style={{ borderRadius: 16, overflow: "hidden" }}>
           <Image
             src="/crew/maven-crew-group.png"
             alt="The Maven Crew — Sovereign Synthesis Command"
@@ -424,6 +425,7 @@ export default function CrewPage() {
             style={{ width: "100%", height: "auto", display: "block", opacity: 0.95 }}
             unoptimized
           />
+          </div>
 
           {/* Chat trigger overlay — positioned over Vector's area (top-right of image) */}
           {!chatOpen && (
@@ -571,7 +573,7 @@ export default function CrewPage() {
         </div>
       </section>
 
-      <style jsx>{`
+      <style jsx global>{`
         /* ===== GROUP CHAT TRIGGER BUTTON ===== */
         .crew-chat-trigger {
           position: absolute;

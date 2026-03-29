@@ -93,9 +93,9 @@ const MAVEN_CREW = [
   { name: "Yuki", role: "Creative & Content", color: "#fddb92", avatar: "/crew/yuki.png" },
   { name: "Sapphire", role: "Core API & Orchestration", color: "#4facfe", avatar: "/crew/sapphire.png" },
   { name: "Anita", role: "Outreach & Nurture", color: "#ebedee", avatar: "/crew/anita.png" },
-  { name: "Alfred", role: "Operations & Automation", color: "#ff9a9e", avatar: "/crew/alfred.png" },
+  { name: "Alfred", role: "Operations & Automation", color: "#C0392B", avatar: "/crew/alfred.png" },
   { name: "Veritas", role: "Truth Engine & Research", color: "#43e97b", avatar: "/crew/veritas.png" },
-  { name: "Vector", role: "Analytics & Intelligence", color: "#fa709a", avatar: "/crew/vector.png" },
+  { name: "Vector", role: "Analytics & Intelligence", color: "#E67E22", avatar: "/crew/vector.png" },
 ];
 
 /* ---------------- HELPERS ---------------- */
