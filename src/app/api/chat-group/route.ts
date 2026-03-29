@@ -84,7 +84,7 @@ RULES:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: systemPrompt,
         messages,
       }),
@@ -101,6 +101,21 @@ RULES:
     console.error('[GROUP-CHAT] AI call failed:', err);
     return 'Transmission received. Processing.';
   }
+}
+
+function pickMultipleResponders(recentHistory: any[], count: number): string[] {
+  const recentAgents = recentHistory
+    .filter(m => m.sender !== 'architect')
+    .slice(-4)
+    .map(m => m.responder_agent)
+    .filter(Boolean);
+
+  const shuffled = [...CREW_AGENTS].sort(() => Math.random() - 0.5);
+  // Prefer agents who haven't spoken recently
+  const fresh = shuffled.filter(a => !recentAgents.includes(a));
+  const stale = shuffled.filter(a => recentAgents.includes(a));
+  const ordered = [...fresh, ...stale];
+  return ordered.slice(0, count);
 }
 
 export async function POST(req: Request) {
@@ -125,22 +140,33 @@ export async function POST(req: Request) {
       .limit(10);
     const recentHistory = (history || []).reverse();
 
-    // Pick which agent responds
-    const responder = pickResponder(recentHistory);
-    const agentResponse = await getGroupResponse(responder, content.trim(), recentHistory);
+    // Pick 2-3 agents to respond (makes it feel like a real group chat)
+    const responderCount = Math.random() > 0.5 ? 3 : 2;
+    const responders = pickMultipleResponders(recentHistory, responderCount);
 
-    // Insert agent response with responder metadata
-    const { error: responseError } = await supabase
-      .from('chat_messages')
-      .insert({
-        agent_name: 'crew',
-        sender: 'agent',
-        content: agentResponse,
-        responder_agent: responder,
-      });
-    if (responseError) throw responseError;
+    const responses: { agent: string; content: string }[] = [];
 
-    return NextResponse.json({ success: true, response: agentResponse, responder });
+    // Generate responses sequentially so each agent can see what the previous said
+    for (const responder of responders) {
+      const agentResponse = await getGroupResponse(responder, content.trim(), [
+        ...recentHistory,
+        ...responses.map(r => ({ sender: 'agent', responder_agent: r.agent, content: r.content })),
+      ]);
+
+      const { error: responseError } = await supabase
+        .from('chat_messages')
+        .insert({
+          agent_name: 'crew',
+          sender: 'agent',
+          content: agentResponse,
+          responder_agent: responder,
+        });
+      if (responseError) console.error(`[GROUP-CHAT] Insert error for ${responder}:`, responseError);
+
+      responses.push({ agent: responder, content: agentResponse });
+    }
+
+    return NextResponse.json({ success: true, responses });
   } catch (error: any) {
     console.error('Group Chat API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

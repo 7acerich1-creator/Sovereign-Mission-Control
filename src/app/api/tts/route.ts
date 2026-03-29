@@ -17,14 +17,14 @@ import { NextResponse } from 'next/server';
 // Update these with your preferred voices
 const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similarity: number }> = {
   yuki: {
-    voiceId: 'pFZP5JQG7iQjIQuC4Bku',  // "Lily" — raspy, young female. Creative edge with texture.
-    stability: 0.30,       // low = expressive, matches creative fire
-    similarity: 0.78,
+    voiceId: 'AZnzlk1XvdvUeBnXmlld',  // "Domi" — strong, energetic female. Attitude and creative fire.
+    stability: 0.25,       // very low = maximum expressiveness, energy, attitude
+    similarity: 0.72,      // looser = more dynamic, unpredictable delivery
   },
   sapphire: {
-    voiceId: 'Xb7hH8MSUJpSbSDYk0k2',  // "Alice" — confident female. Clean, commanding, American.
-    stability: 0.55,       // controlled but not stiff
-    similarity: 0.90,      // high precision, crisp delivery
+    voiceId: 'EXAVITQu4vr4xnSDxMaL',  // "Sarah" — soft American female. Conversational, clean, direct.
+    stability: 0.48,       // balanced = natural conversation flow
+    similarity: 0.85,      // crisp but not stiff
   },
   anita: {
     voiceId: 'XrExE9yKIg1WjnnlVkGX',  // "Matilda" — warm female. Kept, but tuned colder/sharper.
@@ -37,9 +37,9 @@ const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similar
     similarity: 0.85,
   },
   veritas: {
-    voiceId: 'nPczCjzI2devNBz1zQrb',  // "Brian" — deep male. Gravitas, philosophical weight.
-    stability: 0.55,       // measured, deliberate
-    similarity: 0.82,
+    voiceId: 'VR6AewLTigWG4xSOukaG',  // "Arnold" — crisp, slightly mechanical. Cold logic with edge.
+    stability: 0.70,       // high = deliberate, measured, robotic undertone
+    similarity: 0.90,      // precise articulation
   },
   vector: {
     voiceId: 'TX3LPaxmHKxFdv7VOQHJ',  // "Liam" — perfect as-is. Sharp, data-driven.

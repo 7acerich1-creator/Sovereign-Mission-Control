@@ -610,6 +610,16 @@ export default function MissionControl() {
           return (
             <div className={`crew-hero-panel ${heroFullscreen ? 'hero-fullscreen' : ''}`} style={{ "--agent-color": agent.color } as React.CSSProperties}>
               <div className="hero-controls">
+                <button className="hero-control-btn" onClick={() => {
+                  if (!selectedAgent) return;
+                  const agentKey = selectedAgent.toLowerCase();
+                  fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`)
+                    .then(r => r.json())
+                    .then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } })
+                    .catch(() => {});
+                }} title="Refresh chat">
+                  <RotateCcw size={14} />
+                </button>
                 <button className="hero-control-btn" onClick={() => setHeroFullscreen(f => !f)} title={heroFullscreen ? "Exit fullscreen" : "Expand fullscreen"}>
                   {heroFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>

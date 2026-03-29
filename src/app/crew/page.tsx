@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft, Send, X, MessageCircle, Maximize2, Minimize2,
-  Trash2, Volume2, Square,
+  Trash2, Volume2, Square, RotateCcw,
 } from "lucide-react";
 
 /* ======================================================
@@ -289,6 +289,14 @@ export default function CrewPage() {
             <span className="crew-chat-badge">{groupMessages.length}</span>
           </div>
           <div className="crew-chat-controls">
+            <button className="crew-chat-ctrl-btn" onClick={() => {
+              fetch(`/api/chat-group?limit=${PAGE_SIZE}`)
+                .then(r => r.json())
+                .then(d => { if (d.messages) { setGroupMessages(d.messages); setHasMore(d.messages.length >= PAGE_SIZE); } })
+                .catch(() => {});
+            }} title="Refresh">
+              <RotateCcw size={13} />
+            </button>
             {groupMessages.length > 0 && (
               <button className="crew-chat-ctrl-btn" onClick={clearGroupChat} title="Clear all">
                 <Trash2 size={13} />
