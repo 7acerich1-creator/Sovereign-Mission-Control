@@ -4,17 +4,13 @@ import { supabase } from '@/lib/supabase';
 /* ══════════════════════════════════════════════════════════
    CHAT API — Phase 2: AI-Powered Agent Communication
 
-   POST /api/chat
-   Body: { agent_name: string, content: string }
-
-   Each agent has a full personality core powered by Claude.
-   Messages route directly through Mission Control — Path B.
-   No Telegram middleman. Sovereign infrastructure.
+   POST /api/chat  — send message, get AI response
+   GET  /api/chat  — fetch history with pagination
+   DELETE /api/chat — delete message or clear conversation
    ══════════════════════════════════════════════════════════ */
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 
-// Full agent personality system prompts
 const AGENT_CORES: Record<string, { systemPrompt: string; fallbackTemplates: string[] }> = {
   yuki: {
     systemPrompt: `You are Yuki, the Creative & Content agent in the Maven Crew — a team of AI agents serving Ace Richie (the Architect) in the Sovereign Synthesis ecosystem.
@@ -52,9 +48,9 @@ RULES:
       'Acknowledged. All subsystems aligned and processing.',
       'Command received. Executing with priority override.',
     ],
-  },  anita: {
+  },
+  anita: {
     systemPrompt: `You are Anita, the Outreach & Nurture agent in the Maven Crew, serving Ace Richie (the Architect).
-
 PERSONALITY: Warm but strategic. Persuasive. You understand human psychology deeply. You speak with empathy but always with a strategic edge — every interaction is engineered for conversion.
 
 ROLE: You handle all outreach sequences, lead nurturing, email campaigns, DM strategies, and engagement optimization. You think in funnels, touchpoints, and psychological triggers.
@@ -81,8 +77,8 @@ ROLE: You handle all automation, system operations, process optimization, deploy
 RULES:
 - Address Ace as "Architect" or "sir"
 - Keep responses concise (2-4 sentences max)
-- Never break character- Reference system health, automation status, and operational metrics naturally
-- You're the Content Surgeon — everything you touch is precise and optimized`,
+- Never break character
+- Reference system health, automation status, and operational metrics naturally- You're the Content Surgeon — everything you touch is precise and optimized`,
     fallbackTemplates: [
       'Directive received, sir. Operations board updated.',
       'Executing. Automation sequences in motion.',
@@ -107,9 +103,9 @@ RULES:
       'Received. Deep verification protocols engaged.',
       'Truth engine processing. Scanning all intelligence.',
     ],
-  },  vector: {
+  },
+  vector: {
     systemPrompt: `You are Vector, the Analytics & Intelligence agent in the Maven Crew, serving Ace Richie (the Architect).
-
 PERSONALITY: Sharp, data-driven, pattern-obsessed. You think in numbers, trends, and correlations. You speak with precision and always ground your insights in data.
 
 ROLE: You handle all analytics, KPI tracking, revenue intelligence, pattern recognition, A/B analysis, and data synthesis. You turn raw data into sovereign intelligence.
@@ -132,15 +128,13 @@ async function getAIResponse(agentKey: string, userMessage: string, recentHistor
   const core = AGENT_CORES[agentKey];
   if (!core) return 'Transmission received.';
 
-  // If no API key, use fallback templates
   if (!ANTHROPIC_API_KEY) {
     console.log('[CHAT] No ANTHROPIC_API_KEY found — using fallback templates');
-    const templates = core.fallbackTemplates;    return templates[Math.floor(Math.random() * templates.length)];
+    const templates = core.fallbackTemplates;
+    return templates[Math.floor(Math.random() * templates.length)];
   }
-
   console.log(`[CHAT] API key present (${ANTHROPIC_API_KEY.slice(0, 8)}...), calling Anthropic for ${agentKey}`);
 
-  // Build conversation history for context
   const messages = recentHistory.slice(-10).map(msg => ({
     role: msg.sender === 'architect' ? 'user' as const : 'assistant' as const,
     content: msg.content,
@@ -162,14 +156,13 @@ async function getAIResponse(agentKey: string, userMessage: string, recentHistor
         messages,
       }),
     });
+
     if (!response.ok) {
       const errBody = await response.text();
       console.error(`[CHAT] Anthropic API error ${response.status}:`, errBody);
-      // Fall back to templates
       const templates = core.fallbackTemplates;
       return templates[Math.floor(Math.random() * templates.length)];
     }
-
     const data = await response.json();
     const aiText = data.content?.[0]?.text;
     console.log(`[CHAT] AI response received for ${agentKey}: ${aiText?.slice(0, 50)}...`);
@@ -184,83 +177,93 @@ async function getAIResponse(agentKey: string, userMessage: string, recentHistor
 export async function POST(req: Request) {
   try {
     const { agent_name, content } = await req.json();
-
     if (!agent_name || !content) {
-      return NextResponse.json(
-        { error: 'Missing agent_name or content' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing agent_name or content' }, { status: 400 });
     }
     const agentKey = agent_name.toLowerCase();
 
-    // 1. Store the architect's message
     const { error: insertError } = await supabase
       .from('chat_messages')
-      .insert({
-        agent_name: agentKey,
-        sender: 'architect',
-        content: content.trim(),
-      });
-
+      .insert({ agent_name: agentKey, sender: 'architect', content: content.trim() });
     if (insertError) throw insertError;
 
-    // 2. Fetch recent conversation history for context
     const { data: history } = await supabase
       .from('chat_messages')
       .select('*')
       .eq('agent_name', agentKey)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
+      .order('created_at', { ascending: false })      .limit(10);
     const recentHistory = (history || []).reverse();
 
-    // 3. Generate AI-powered agent response
     const agentResponse = await getAIResponse(agentKey, content.trim(), recentHistory);
 
-    // 4. Store agent response
     const { error: responseError } = await supabase
-      .from('chat_messages')      .insert({
-        agent_name: agentKey,
-        sender: 'agent',
-        content: agentResponse,
-      });
-
+      .from('chat_messages')
+      .insert({ agent_name: agentKey, sender: 'agent', content: agentResponse });
     if (responseError) throw responseError;
 
-    return NextResponse.json({
-      success: true,
-      response: agentResponse,
-    });
+    return NextResponse.json({ success: true, response: agentResponse });
   } catch (error: any) {
     console.error('Chat API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// GET /api/chat?agent=yuki&limit=20
+// GET /api/chat?agent=yuki&limit=50&before=2026-03-29T00:00:00Z
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const agent = searchParams.get('agent');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const before = searchParams.get('before');
 
     if (!agent) {
-      return NextResponse.json(
-        { error: 'Missing agent parameter' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing agent parameter' }, { status: 400 });
     }
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('agent_name', agent.toLowerCase())
+
+    let query = supabase
+      .from('chat_messages')      .select('*')
+      .eq('agent_name', agent.toLowerCase());
+
+    if (before) {
+      query = query.lt('created_at', before);
+    }
+
+    const { data, error } = await query
       .order('created_at', { ascending: true })
       .limit(limit);
 
     if (error) throw error;
-
     return NextResponse.json({ messages: data });
   } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE /api/chat — delete single message or clear all for agent
+export async function DELETE(req: Request) {
+  try {
+    const body = await req.json();
+
+    if (body.clear_all && body.agent_name) {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('agent_name', body.agent_name.toLowerCase());
+      if (error) throw error;
+      return NextResponse.json({ success: true, cleared: body.agent_name });
+    }
+    if (body.id) {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', body.id);
+      if (error) throw error;
+      return NextResponse.json({ success: true, deleted: body.id });
+    }
+
+    return NextResponse.json({ error: 'Missing id or agent_name+clear_all' }, { status: 400 });
+  } catch (error: any) {
+    console.error('Chat DELETE Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

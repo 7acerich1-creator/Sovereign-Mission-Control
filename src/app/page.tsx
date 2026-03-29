@@ -23,6 +23,8 @@ import {
   Volume2,
   X,
   MessageCircle,
+  Trash2,
+  Trash2,
 } from "lucide-react";
 
 /* ──────────────────── TYPES ──────────────────── */
@@ -229,15 +231,23 @@ export default function MissionControl() {
   const [messageInput, setMessageInput] = useState("");
   const [chatMessages, setChatMessages] = useState<{ id: string; agent_name: string; sender: string; content: string; created_at: string; voice_played?: boolean }[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const chatFeedRef = useRef<HTMLDivElement>(null);
+  const CHAT_PAGE_SIZE = 50;
 
   /* ── CHAT: fetch history when agent selected ── */
   useEffect(() => {
-    if (!selectedAgent) { setChatMessages([]); return; }
+    if (!selectedAgent) { setChatMessages([]); setHasMoreMessages(false); return; }
     const agentKey = selectedAgent.toLowerCase();
-    fetch(`/api/chat?agent=${agentKey}&limit=30`)
+    fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`)
       .then(r => r.json())
-      .then(d => { if (d.messages) setChatMessages(d.messages); })
+      .then(d => {
+        if (d.messages) {
+          setChatMessages(d.messages);
+          setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE);
+        }
+      })
       .catch(() => {});
 
     // Realtime subscription for new chat messages
@@ -251,17 +261,71 @@ export default function MissionControl() {
       }, (payload) => {
         setChatMessages(prev => [...prev, payload.new as any]);
       })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `agent_name=eq.${agentKey}`,
+      }, (payload) => {
+        setChatMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [selectedAgent]);
 
-  // Auto-scroll chat feed
+  // Auto-scroll chat feed (only on new messages, not load-more)
+  const shouldAutoScroll = useRef(true);
   useEffect(() => {
-    if (chatFeedRef.current) {
+    if (chatFeedRef.current && shouldAutoScroll.current) {
       chatFeedRef.current.scrollTop = chatFeedRef.current.scrollHeight;
     }
+    shouldAutoScroll.current = true;
   }, [chatMessages]);
+
+  // Load older messages when scrolling to top
+  async function loadOlderMessages() {
+    if (!selectedAgent || isLoadingMore || !hasMoreMessages || chatMessages.length === 0) return;
+    setIsLoadingMore(true);
+    shouldAutoScroll.current = false;
+    const oldestTimestamp = chatMessages[0]?.created_at;
+    const agentKey = selectedAgent.toLowerCase();
+    try {
+      const res = await fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}&before=${encodeURIComponent(oldestTimestamp)}`);
+      const d = await res.json();
+      if (d.messages && d.messages.length > 0) {
+        setChatMessages(prev => [...d.messages, ...prev]);
+        setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch { setHasMoreMessages(false); }
+    setIsLoadingMore(false);
+  }
+
+  // Delete a single message
+  async function deleteMessage(messageId: string) {
+    try {
+      await fetch('/api/chat', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: messageId }),
+      });
+      setChatMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) { console.error('Delete failed:', err); }
+  }
+
+  // Clear all messages for an agent
+  async function clearAgentChat(agentName: string) {
+    try {
+      await fetch('/api/chat', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_name: agentName.toLowerCase(), clear_all: true }),
+      });
+      setChatMessages([]);
+    } catch (err) { console.error('Clear failed:', err); }
+  }
 
   const [speakingId, setSpeakingId] = useState<string | null>(null);
 
@@ -527,7 +591,19 @@ export default function MissionControl() {
               {/* CHAT FEED — live conversation */}
               <div className="hero-activity">
                 <span className="hero-section-label">TRANSMISSIONS</span>
-                <div className="hero-activity-feed" ref={chatFeedRef}>
+                <div
+                  className="hero-activity-feed"
+                  ref={chatFeedRef}
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    if (el.scrollTop < 40 && hasMoreMessages && !isLoadingMore) loadOlderMessages();
+                  }}
+                >
+                  {/* Load more indicator */}
+                  {isLoadingMore && <div className="chat-load-more">Loading older transmissions...</div>}
+                  {hasMoreMessages && !isLoadingMore && chatMessages.length > 0 && (
+                    <button className="chat-load-more-btn" onClick={loadOlderMessages}>Load older messages</button>
+                  )}
                   {/* Legacy activity (from agent_history) */}
                   {chatMessages.length === 0 && agentHistoryFiltered.length > 0 && agentHistoryFiltered.map((entry) => (
                     <div key={entry.id} className="hero-feed-item">
@@ -547,19 +623,34 @@ export default function MissionControl() {
                     <div key={msg.id} className={`hero-feed-item ${msg.sender === 'architect' ? 'msg-architect' : 'msg-agent'}`}>
                       <span className="feed-sender">{msg.sender === 'architect' ? 'ACE' : agent.name.toUpperCase()}</span>
                       <p className="feed-content">{msg.content}</p>
-                      <button
-                        className={`feed-speak-btn ${speakingId === msg.id ? 'speaking' : ''}`}
-                        title="Speak this transmission"
-                        onClick={(e) => { e.stopPropagation(); speakText(agent.name, msg.content, msg.id); }}
-                      >
-                        <Volume2 size={12} />
-                      </button>
+                      <div className="feed-actions">
+                        <button
+                          className={`feed-speak-btn ${speakingId === msg.id ? 'speaking' : ''}`}
+                          title="Speak this transmission"
+                          onClick={(e) => { e.stopPropagation(); speakText(agent.name, msg.content, msg.id); }}
+                        >
+                          <Volume2 size={12} />
+                        </button>
+                        <button
+                          className="feed-delete-btn"
+                          title="Delete this message"
+                          onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id); }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {chatMessages.length === 0 && agentHistoryFiltered.length === 0 && (
                     <div className="hero-feed-empty">No transmissions yet. Send the first message.</div>
                   )}
                 </div>
+                {/* Clear all button */}
+                {chatMessages.length > 0 && (
+                  <button className="chat-clear-all-btn" onClick={() => clearAgentChat(agent.name)}>
+                    <Trash2 size={12} /> Clear conversation
+                  </button>
+                )}
               </div>
 
               {/* MESSAGE INPUT — live wired */}
@@ -1233,6 +1324,74 @@ export default function MissionControl() {
         @keyframes speakPulse {
           0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--agent-color) 20%, transparent); }
           50% { box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 50%, transparent); }
+        }
+        .feed-actions {
+          display: flex;
+          gap: 4px;
+          flex-shrink: 0;
+        }
+        .feed-delete-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 6px;
+          color: var(--color-text-muted);
+          padding: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          opacity: 0;
+        }
+        .hero-feed-item:hover .feed-delete-btn {
+          opacity: 1;
+        }
+        .feed-delete-btn:hover {
+          color: #ff4444;
+          border-color: #ff4444;
+          background: rgba(255, 68, 68, 0.1);
+        }
+        .chat-load-more {
+          text-align: center;
+          font-size: 11px;
+          color: var(--color-text-muted);
+          padding: 8px;
+          font-style: italic;
+        }
+        .chat-load-more-btn {
+          display: block;
+          width: 100%;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 6px;
+          color: var(--color-text-muted);
+          font-size: 11px;
+          padding: 6px;
+          cursor: pointer;
+          margin-bottom: 8px;
+          transition: all 0.2s;
+        }
+        .chat-load-more-btn:hover {
+          color: var(--agent-color);
+          border-color: var(--agent-color);
+        }
+        .chat-clear-all-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: none;
+          border: none;
+          color: var(--color-text-muted);
+          font-size: 11px;
+          cursor: pointer;
+          padding: 4px 8px;
+          margin-top: 4px;
+          opacity: 0.5;
+          transition: all 0.2s;
+        }
+        .chat-clear-all-btn:hover {
+          opacity: 1;
+          color: #ff4444;
         }
         .hero-feed-empty {
           font-size: 12px;
