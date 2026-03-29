@@ -1324,6 +1324,42 @@ export default function MissionControl() {
           flex-shrink: 0;
           position: relative;
           z-index: 5;
+          flex-direction: row;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 12px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .hero-fullscreen .hero-avatar-wrap {
+          width: 48px;
+          height: 48px;
+          border-width: 2px;
+          box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 25%, transparent);
+        }
+        .hero-fullscreen .hero-dot {
+          width: 10px;
+          height: 10px;
+          bottom: 2px;
+          right: 2px;
+          border-width: 2px;
+        }
+        .hero-fullscreen .hero-identity {
+          flex-direction: row;
+          align-items: center;
+          gap: 12px;
+          padding-top: 0;
+        }
+        .hero-fullscreen .hero-name {
+          font-size: 18px;
+          margin: 0;
+        }
+        .hero-fullscreen .hero-role {
+          font-size: 11px;
+          opacity: 0.7;
+        }
+        .hero-fullscreen .hero-active-task {
+          display: none;
         }
         .hero-fullscreen .hero-activity {
           flex: 1;
