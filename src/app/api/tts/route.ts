@@ -48,7 +48,7 @@ const AGENT_VOICES: Record<string, { voiceId: string; stability: number; similar
   },
 };
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || process.env.elevenlabs || '';
 
 export async function POST(req: Request) {
   try {
