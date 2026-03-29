@@ -291,7 +291,7 @@ export default function Tasks() {
 
     // Trigger crew briefing if agent changed to a new one
     if (editAgent && editAgent !== previousAgent) {
-      triggerCrewBriefing(editAgent, editTask.title, editTask.description, editCategory, editPriority);
+      triggerCrewBriefing(editAgent, editTask.title, editTask.description ?? null, editCategory, editPriority);
     }
 
     setEditTask(null);
