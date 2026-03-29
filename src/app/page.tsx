@@ -1280,13 +1280,12 @@ export default function MissionControl() {
 
         .hero-controls {
           position: sticky;
-          top: -32px;
+          top: 0;
           display: flex;
           justify-content: flex-end;
           gap: 6px;
           z-index: 10;
-          padding: 32px 0 8px 0;
-          margin-top: -32px;
+          padding: 0 0 8px 0;
           background: linear-gradient(135deg, rgba(14, 14, 14, 0.99), rgba(20, 18, 30, 0.98));
         }
         .hero-control-btn {
@@ -1351,11 +1350,10 @@ export default function MissionControl() {
           gap: 28px;
           margin-bottom: 28px;
           position: sticky;
-          top: -32px;
+          top: 32px;
           z-index: 5;
           background: linear-gradient(135deg, rgba(14, 14, 14, 0.99), rgba(20, 18, 30, 0.98));
-          padding: 32px 0 16px 0;
-          margin-top: -32px;
+          padding-bottom: 16px;
         }
 
         .hero-avatar-wrap {
