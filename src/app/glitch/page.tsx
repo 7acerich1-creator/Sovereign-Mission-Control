@@ -77,13 +77,19 @@ export default function GlitchLog() {
 
   async function createGlitch() {
     if (!newTitle.trim()) return;
-    await supabase.from('glitch_log').insert({
+    const { error } = await supabase.from('glitch_log').insert({
       title: newTitle.trim(),
       description: newDesc.trim(),
       severity: newSeverity,
       source: newSource,
       resolved: false,
+      detected_at: new Date().toISOString(),
     });
+    if (error) {
+      console.error('Glitch insert failed:', error);
+      alert('Failed to log glitch — check console for details.');
+      return;
+    }
     setNewTitle('');
     setNewDesc('');
     setNewSeverity('Warning');

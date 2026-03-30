@@ -1,204 +1,98 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import {
   Eye, Zap, Shield, Flame, Cpu, Crown, Lock,
-  ExternalLink, ArrowRight, ChevronDown, ChevronUp
+  ExternalLink, ArrowRight, ChevronDown, ChevronUp,
+  RefreshCw, BookOpen
 } from 'lucide-react';
 
 /* ==========================================================
-   PRODUCTS PAGE — THE SOVEREIGN FUNNEL ARCHITECTURE
-   All 8 tiers of the liberation pipeline, wired to live URLs
+   PRODUCTS PAGE — SOVEREIGN FUNNEL ARCHITECTURE
+   Reads live from Supabase product_tiers table.
+   This is the Architect's quality control panel —
+   what you see here is what your clients receive.
    ========================================================== */
 
-type FunnelTier = {
-  tier: number;
-  codename: string;
-  title: string;
-  subtitle: string;
-  price: string;
-  priceNote?: string;
-  color: string;
-  glow: string;
-  borderColor: string;
-  icon: any;
-  liveUrl: string;
-  postPurchaseUrl?: string;
-  status: 'LIVE' | 'COMING SOON' | 'APPLICATION';
-  features: string[];
-  psychOp: string; // the psychological function this tier serves
+type CurriculumModule = {
+  module: string;
+  module_name: string;
+  lessons: { num: number; title: string }[];
 };
 
-const FUNNEL: FunnelTier[] = [
-  {
-    tier: 0,
-    codename: 'THE CONTAINMENT FIELD',
-    title: 'Links Hub',
-    subtitle: 'Mirror the viewer\'s current state. One thread of gold.',
-    price: 'FREE',
-    color: '#7C7A9A',
-    glow: 'rgba(124, 122, 154, 0.12)',
-    borderColor: 'rgba(124, 122, 154, 0.25)',
-    icon: Eye,
-    liveUrl: 'https://sovereign-synthesis.com/tier-0/links',
-    status: 'LIVE',
-    features: ['Boot sequence animation', 'Psychological state mirroring', 'Single gold thread CTA'],
-    psychOp: 'AWARENESS — "Something feels off"',
-  },
-  {
-    tier: 1,
-    codename: 'THE DIAGNOSTIC',
-    title: 'Reality Override Manual',
-    subtitle: 'Interactive 12-question pattern scanner + free PDF.',
-    price: 'FREE',
-    priceNote: 'Email capture',
-    color: '#3EF7E8',
-    glow: 'rgba(62, 247, 232, 0.12)',
-    borderColor: 'rgba(62, 247, 232, 0.25)',
-    icon: Zap,
-    liveUrl: 'https://sovereign-synthesis.com/tier-1/',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-1/download',
-    status: 'LIVE',
-    features: ['Interference Pattern Diagnostic', 'Reality Override Manual (PDF)', 'Email sequence trigger'],
-    psychOp: 'IDENTIFICATION — "I see the pattern now"',
-  },
-  {
-    tier: 2,
-    codename: 'THE FIELD MANUAL',
-    title: 'The Shield: Protocol 77',
-    subtitle: 'The Sovereign\'s Field Manual. 4-phase guided runner.',
-    price: '$77',
-    color: '#3EF7E8',
-    glow: 'rgba(62, 247, 232, 0.12)',
-    borderColor: 'rgba(62, 247, 232, 0.25)',
-    icon: Shield,
-    liveUrl: 'https://sovereign-synthesis.com/tier-2/protocol-77',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-2/protocol-77-runner',
-    status: 'LIVE',
-    features: ['Protocol 77 PDF (v3)', 'Interactive Protocol Runner', 'Shield/Map/Anchor framework', 'Stripe checkout live'],
-    psychOp: 'PROTECTION — "I have a shield now"',
-  },
-  {
-    tier: 3,
-    codename: 'THE OPERATING SYSTEM',
-    title: 'The Map: Navigation Override',
-    subtitle: '5-phase OS installation. The architecture becomes visible.',
-    price: '$177',
-    color: '#7C5CFC',
-    glow: 'rgba(124, 92, 252, 0.12)',
-    borderColor: 'rgba(124, 92, 252, 0.25)',
-    icon: Flame,
-    liveUrl: 'https://sovereign-synthesis.com/tier-3/manifesto',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-3/manifesto-navigator',
-    status: 'LIVE',
-    features: ['Manifesto Phase Navigator', '5-phase installation sequence', '$177 credit toward SMA Phase 1'],
-    psychOp: 'ARCHITECTURE — "I see the whole system"',
-  },
-  {
-    tier: 4,
-    codename: 'DECLASSIFICATION',
-    title: 'The Architect: Foundation Protocol',
-    subtitle: 'Stop Reacting. Start Architecting. The full course.',
-    price: '$477',
-    priceNote: '$300 with Manifesto credit',
-    color: '#C9804C',
-    glow: 'rgba(201, 128, 76, 0.12)',
-    borderColor: 'rgba(201, 128, 76, 0.25)',
-    icon: Cpu,
-    liveUrl: 'https://sovereign-synthesis.com/tier-4/defense-protocol',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-4/course-portal',
-    status: 'LIVE',
-    features: ['Full course portal', 'Video modules', 'Stripe checkout live', 'Manifesto credit applied automatically'],
-    psychOp: 'MASTERY — "I am building my own architecture"',
-  },
-  {
-    tier: 5,
-    codename: 'NEUTRALIZATION',
-    title: 'The Architect: Adversarial Systems',
-    subtitle: 'The Architecture Under Load. Real-world deployment.',
-    price: '$1,497',
-    color: '#C9804C',
-    glow: 'rgba(201, 128, 76, 0.12)',
-    borderColor: 'rgba(201, 128, 76, 0.25)',
-    icon: Cpu,
-    liveUrl: 'https://sovereign-synthesis.com/tier-5/phase-2',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-5/course-portal',
-    status: 'LIVE',
-    features: [
-      'Full course portal (5 modules)',
-      'Module 006: Pressure Architecture — Building systems that hold under hostile load',
-      'Module 007: Interference Neutralization — Eliminating biological drag at the root',
-      'Module 008: Field Deployment — Real-world sovereign implementation protocols',
-      'Module 009: Revenue Under Fire — Engineering income streams under pressure',
-      'Module 010: The Sovereign Operator — Identity lock under full operational tempo',
-      'Video modules + workbooks per module',
-      'Stripe checkout live',
-    ],
-    psychOp: 'DEPLOYMENT — "The system holds under load"',
-  },
-  {
-    tier: 6,
-    codename: 'THE DEPLOYMENT',
-    title: 'The Architect: Sovereign Integration',
-    subtitle: 'Full Sovereign Synthesis. The Integration.',
-    price: '$3,777',
-    color: '#C9A84C',
-    glow: 'rgba(201, 168, 76, 0.15)',
-    borderColor: 'rgba(201, 168, 76, 0.25)',
-    icon: Crown,
-    liveUrl: 'https://sovereign-synthesis.com/tier-6/phase-3',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-6/course-portal',
-    status: 'LIVE',
-    features: [
-      'Full course portal (5 modules)',
-      'Module 011: The Integration Protocol — Merging all phases into one operating system',
-      'Module 012: Sovereign Economics — Advanced revenue architecture and wealth systems',
-      'Module 013: Network Sovereignty — Building your own gravity field of aligned operators',
-      'Module 014: Legacy Architecture — Designing systems that outlive you',
-      'Module 015: The Synthesis — Full sovereign deployment and identity crystallization',
-      'Video modules + workbooks per module',
-      'All previous tier content unlocked',
-      'Stripe checkout live',
-    ],
-    psychOp: 'SYNTHESIS — "I am the system"',
-  },
-  {
-    tier: 7,
-    codename: 'PRIME ARCHITECT',
-    title: 'Inner Circle: Sovereign Licensing',
-    subtitle: 'Direct Access to the Architect. Application only.',
-    price: 'APPLICATION',
-    color: '#E8C56A',
-    glow: 'rgba(232, 197, 106, 0.15)',
-    borderColor: 'rgba(232, 197, 106, 0.3)',
-    icon: Lock,
-    liveUrl: 'https://sovereign-synthesis.com/tier-7/inner-circle',
-    postPurchaseUrl: 'https://sovereign-synthesis.com/tier-7/course-portal',
-    status: 'APPLICATION',
-    features: [
-      'Full Member Portal — 65 lessons, 24 workbooks across 6 phases',
-      'Phase 1: Foundation Architecture — Core system installation',
-      'Phase 2: Pressure Systems — Operating under hostile conditions',
-      'Phase 3: Revenue Engineering — Sovereign income architecture',
-      'Phase 4: Network Sovereignty — Building your operator field',
-      'Phase 5: Legacy Protocol — Systems that outlive the architect',
-      'Phase 6: Prime Architect — Full sovereignty crystallization',
-      '1-on-1 System Architecture sessions with the Architect',
-      'Direct Architect Access (Telegram)',
-      'Custom Reality Override Protocol',
-      'Revenue Engineering Blueprint',
-      'All T2–T6 content unlocked',
-    ],
-    psychOp: 'SOVEREIGNTY — "I architect reality"',
-  },
-];
+type CurriculumPhase = {
+  phase: number;
+  phase_name: string;
+  codename: string;
+  transmissions: { num: string; title: string; subtitle: string | null }[];
+};
+
+type ProductTier = {
+  price_id: string;
+  name: string;
+  tier_slug: string;
+  amount: number;
+  tier_number: number;
+  codename: string;
+  subtitle: string;
+  phase_name: string | null;
+  phase_codename: string | null;
+  portal_url: string | null;
+  sales_url: string | null;
+  thank_you_url: string | null;
+  status: string;
+  curriculum: (CurriculumModule | CurriculumPhase)[];
+  features: string[];
+  psych_op: string;
+  updated_at: string;
+};
+
+const TIER_COLORS: Record<string, { color: string; glow: string; border: string; icon: any }> = {
+  p77:          { color: '#3EF7E8', glow: 'rgba(62, 247, 232, 0.12)', border: 'rgba(62, 247, 232, 0.25)', icon: Shield },
+  manifesto:    { color: '#7C5CFC', glow: 'rgba(124, 92, 252, 0.12)', border: 'rgba(124, 92, 252, 0.25)', icon: Flame },
+  dp1:          { color: '#C9804C', glow: 'rgba(201, 128, 76, 0.12)', border: 'rgba(201, 128, 76, 0.25)', icon: Cpu },
+  dp2:          { color: '#C9804C', glow: 'rgba(201, 128, 76, 0.12)', border: 'rgba(201, 128, 76, 0.25)', icon: Cpu },
+  dp3:          { color: '#C9A84C', glow: 'rgba(201, 168, 76, 0.15)', border: 'rgba(201, 168, 76, 0.25)', icon: Crown },
+  inner_circle: { color: '#E8C56A', glow: 'rgba(232, 197, 106, 0.15)', border: 'rgba(232, 197, 106, 0.3)', icon: Lock },
+};
+
+function formatPrice(amount: number): string {
+  if (amount === 0) return 'FREE';
+  return '$' + amount.toLocaleString();
+}
 
 export default function ProductsPage() {
   const [expandedTier, setExpandedTier] = useState<number | null>(null);
+  const [tiers, setTiers] = useState<ProductTier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastSync, setLastSync] = useState<string>('');
 
-  const totalProducts = FUNNEL.length;
-  const liveProducts = FUNNEL.filter(f => f.status === 'LIVE').length;
-  const maxRevPerCustomer = '$5,955+';
+  useEffect(() => {
+    fetchTiers();
+    const channel = supabase
+      .channel('product-tier-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_tiers' }, () => fetchTiers())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  async function fetchTiers() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('product_tiers')
+      .select('*')
+      .order('tier_number', { ascending: true });
+    if (data && !error) {
+      setTiers(data as ProductTier[]);
+      setLastSync(new Date().toLocaleTimeString());
+    }
+    setLoading(false);
+  }
+
+  const totalProducts = tiers.length;
+  const liveProducts = tiers.filter(t => t.status === 'live').length;
+  const totalValue = tiers.reduce((sum, t) => sum + (t.status !== 'application' ? Number(t.amount) : 0), 0);
 
   return (
     <div className="fade-in">
@@ -208,7 +102,7 @@ export default function ProductsPage() {
       <header className="page-header">
         <div className="header-main">
           <h1 className="h1-display">FUNNEL ARCHITECTURE</h1>
-          <p className="eyebrow text-secondary">PRODUCT PIPELINE :: TIERED LIBERATION SEQUENCE</p>
+          <p className="eyebrow text-secondary">PRODUCT PIPELINE :: LIVE FROM SUPABASE</p>
         </div>
         <div className="header-stats">
           <div className="mini-stat">
@@ -220,112 +114,190 @@ export default function ProductsPage() {
             <span className="value" style={{ color: '#1D9E75' }}>{liveProducts}</span>
           </div>
           <div className="mini-stat">
-            <span className="label">MAX LTV</span>
-            <span className="value" style={{ color: '#E8C56A' }}>{maxRevPerCustomer}</span>
+            <span className="label">STACK VALUE</span>
+            <span className="value" style={{ color: '#E8C56A' }}>${totalValue.toLocaleString()}</span>
           </div>
         </div>
       </header>
 
-      {/* FUNNEL FLOW VISUALIZATION */}
-      <section className="funnel-flow">
-        {FUNNEL.map((tier, idx) => {
-          const Icon = tier.icon;
-          const isExpanded = expandedTier === tier.tier;
-          const isLast = idx === FUNNEL.length - 1;
+      {/* SYNC STATUS */}
+      <div className="sync-bar">
+        <div className="sync-left">
+          <div className="sync-dot" />
+          <span>LIVE — SUPABASE product_tiers</span>
+        </div>
+        {lastSync && <span className="sync-time">Last sync: {lastSync}</span>}
+        <button className="sync-btn" onClick={fetchTiers} title="Refresh">
+          <RefreshCw size={12} className={loading ? 'spin' : ''} />
+        </button>
+      </div>
 
-          return (
-            <div key={tier.tier} className="tier-wrapper">
-              <div
-                className={`tier-card ${isExpanded ? 'expanded' : ''}`}
-                style={{
-                  '--tier-color': tier.color,
-                  '--tier-glow': tier.glow,
-                  '--tier-border': tier.borderColor,
-                } as React.CSSProperties}
-                onClick={() => setExpandedTier(isExpanded ? null : tier.tier)}
-              >
-                {/* TIER HEADER */}
-                <div className="tier-header">
-                  <div className="tier-left">
-                    <div className="tier-icon-wrap">
-                      <Icon size={16} />
-                    </div>
-                    <div className="tier-meta">
-                      <div className="tier-badge">
-                        <span className="tier-num">T{tier.tier}</span>
-                        <span className="tier-codename">{tier.codename}</span>
+      {/* FUNNEL FLOW VISUALIZATION */}
+      {loading && tiers.length === 0 ? (
+        <div className="loading-state">Loading product tiers...</div>
+      ) : (
+        <section className="funnel-flow">
+          {tiers.map((tier, idx) => {
+            const visual = TIER_COLORS[tier.tier_slug] || TIER_COLORS.dp1;
+            const Icon = visual.icon;
+            const isExpanded = expandedTier === tier.tier_number;
+            const isLast = idx === tiers.length - 1;
+            const hasCurriculum = tier.curriculum && tier.curriculum.length > 0;
+
+            return (
+              <div key={tier.tier_slug} className="tier-wrapper">
+                <div
+                  className={`tier-card ${isExpanded ? 'expanded' : ''}`}
+                  style={{
+                    '--tier-color': visual.color,
+                    '--tier-glow': visual.glow,
+                    '--tier-border': visual.border,
+                  } as React.CSSProperties}
+                  onClick={() => setExpandedTier(isExpanded ? null : tier.tier_number)}
+                >
+                  {/* TIER HEADER */}
+                  <div className="tier-header">
+                    <div className="tier-left">
+                      <div className="tier-icon-wrap">
+                        <Icon size={16} />
                       </div>
-                      <h3 className="tier-title">{tier.title}</h3>
-                      <p className="tier-subtitle">{tier.subtitle}</p>
+                      <div className="tier-meta">
+                        <div className="tier-badge">
+                          <span className="tier-num">T{tier.tier_number}</span>
+                          <span className="tier-codename">{tier.codename}</span>
+                        </div>
+                        <h3 className="tier-title">{tier.name}</h3>
+                        <p className="tier-subtitle">{tier.subtitle}</p>
+                      </div>
+                    </div>
+                    <div className="tier-right">
+                      <div className="tier-price">
+                        {tier.status === 'application' ? 'APPLICATION' : formatPrice(Number(tier.amount))}
+                      </div>
+                      {tier.phase_name && (
+                        <div className="tier-phase-badge">{tier.phase_name}</div>
+                      )}
+                      <div className={`tier-status status-${tier.status}`}>
+                        <span className="status-dot-sm" />
+                        {tier.status.toUpperCase()}
+                      </div>
+                      <div className="tier-chevron">
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </div>
                     </div>
                   </div>
-                  <div className="tier-right">
-                    <div className="tier-price">{tier.price}</div>
-                    {tier.priceNote && <div className="tier-price-note">{tier.priceNote}</div>}
-                    <div className={`tier-status status-${tier.status.toLowerCase().replace(' ', '-')}`}>
-                      <span className="status-dot-sm" />
-                      {tier.status}
+
+                  {/* EXPANDED DETAIL */}
+                  {isExpanded && (
+                    <div className="tier-detail">
+                      <div className="tier-detail-grid">
+                        <div className="detail-section">
+                          <div className="detail-label">PSYCH FUNCTION</div>
+                          <div className="detail-value psych-op">{tier.psych_op}</div>
+                        </div>
+                        <div className="detail-section">
+                          <div className="detail-label">INCLUDES</div>
+                          <ul className="detail-features">
+                            {(tier.features || []).map((f, i) => (
+                              <li key={i}>{f}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* CURRICULUM — The actual deliverable */}
+                      {hasCurriculum && (
+                        <div className="curriculum-section">
+                          <div className="curriculum-header">
+                            <BookOpen size={14} />
+                            <span>CURRICULUM — WHAT THE CLIENT RECEIVES</span>
+                          </div>
+                          {tier.curriculum.map((item: any, ci: number) => (
+                            <div key={ci} className="curriculum-block">
+                              {'module' in item && item.module_name ? (
+                                <>
+                                  <div className="curriculum-module-name">
+                                    MODULE {item.module} // {item.module_name}
+                                  </div>
+                                  <div className="curriculum-lessons">
+                                    {(item.lessons || []).map((l: any, li: number) => (
+                                      <div key={li} className="curriculum-lesson">
+                                        <span className="lesson-num">L{l.num}</span>
+                                        <span className="lesson-title">{l.title}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : 'phase_name' in item ? (
+                                <>
+                                  <div className="curriculum-phase-name">
+                                    PHASE {item.phase}: {item.phase_name}
+                                    {item.codename && (
+                                      <span className="phase-codename-tag">{item.codename}</span>
+                                    )}
+                                  </div>
+                                  <div className="curriculum-lessons">
+                                    {(item.transmissions || []).map((t: any, ti: number) => (
+                                      <div key={ti} className="curriculum-lesson">
+                                        <span className="lesson-num">{t.num}</span>
+                                        <span className="lesson-title">
+                                          {t.title}
+                                          {t.subtitle && (
+                                            <span className="lesson-subtitle"> — {t.subtitle}</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="tier-links">
+                        {tier.sales_url && (
+                          <a href={tier.sales_url} target="_blank" rel="noopener noreferrer" className="tier-link-btn">
+                            <ExternalLink size={12} />
+                            SALES PAGE
+                          </a>
+                        )}
+                        {tier.portal_url && (
+                          <a href={tier.portal_url} target="_blank" rel="noopener noreferrer" className="tier-link-btn secondary">
+                            <ArrowRight size={12} />
+                            COURSE PORTAL
+                          </a>
+                        )}
+                        {tier.thank_you_url && (
+                          <a href={tier.thank_you_url} target="_blank" rel="noopener noreferrer" className="tier-link-btn secondary">
+                            <ArrowRight size={12} />
+                            THANK YOU PAGE
+                          </a>
+                        )}
+                      </div>
+
+                      <div className="tier-meta-bar">
+                        <span>Stripe: {tier.price_id}</span>
+                        <span>Slug: {tier.tier_slug}</span>
+                        {tier.updated_at && <span>Updated: {new Date(tier.updated_at).toLocaleDateString()}</span>}
+                      </div>
                     </div>
-                    <div className="tier-chevron">
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* EXPANDED DETAIL */}
-                {isExpanded && (
-                  <div className="tier-detail">
-                    <div className="tier-detail-grid">
-                      <div className="detail-section">
-                        <div className="detail-label">PSYCH FUNCTION</div>
-                        <div className="detail-value psych-op">{tier.psychOp}</div>
-                      </div>
-                      <div className="detail-section">
-                        <div className="detail-label">INCLUDES</div>
-                        <ul className="detail-features">
-                          {tier.features.map((f, i) => (
-                            <li key={i}>{f}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="tier-links">
-                      <a
-                        href={tier.liveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="tier-link-btn"
-                      >
-                        <ExternalLink size={12} />
-                        VIEW LIVE PAGE
-                      </a>
-                      {tier.postPurchaseUrl && (
-                        <a
-                          href={tier.postPurchaseUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tier-link-btn secondary"
-                        >
-                          <ArrowRight size={12} />
-                          POST-PURCHASE
-                        </a>
-                      )}
-                    </div>
+                {/* FLOW CONNECTOR */}
+                {!isLast && (
+                  <div className="flow-connector">
+                    <div className="flow-line" />
+                    <div className="flow-arrow">▼</div>
                   </div>
                 )}
               </div>
-
-              {/* FLOW CONNECTOR */}
-              {!isLast && (
-                <div className="flow-connector">
-                  <div className="flow-line" />
-                  <div className="flow-arrow">▼</div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </section>
+            );
+          })}
+        </section>
+      )}
 
       {/* REVENUE ARCHITECTURE SUMMARY */}
       <section className="rev-summary">
@@ -333,7 +305,7 @@ export default function ProductsPage() {
         <div className="rev-grid">
           <div className="rev-card">
             <div className="rev-label">FULL STACK VALUE</div>
-            <div className="rev-amount" style={{ color: '#E8C56A' }}>$5,955</div>
+            <div className="rev-amount" style={{ color: '#E8C56A' }}>${totalValue.toLocaleString()}</div>
             <div className="rev-sub">T2 → T6 if customer completes all phases</div>
           </div>
           <div className="rev-card">
@@ -343,13 +315,57 @@ export default function ProductsPage() {
           </div>
           <div className="rev-card">
             <div className="rev-label">INNER CIRCLE</div>
-            <div className="rev-amount" style={{ color: '#C9A84C' }}>∞</div>
+            <div className="rev-amount" style={{ color: '#C9A84C' }}>$12,000</div>
             <div className="rev-sub">Application-based. Direct Architect access.</div>
           </div>
         </div>
       </section>
 
       <style jsx>{`
+        /* === SYNC BAR === */
+        .sync-bar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 16px;
+          background: rgba(46, 204, 143, 0.04);
+          border: 1px solid rgba(46, 204, 143, 0.12);
+          border-radius: 8px;
+          margin-bottom: 32px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          letter-spacing: 0.1em;
+          color: var(--color-text-muted);
+        }
+        .sync-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #1D9E75;
+          font-weight: 700;
+        }
+        .sync-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #1D9E75;
+          box-shadow: 0 0 8px #1D9E75;
+          animation: pulse-green 2s infinite;
+        }
+        .sync-time { margin-left: auto; }
+        .sync-btn {
+          background: transparent; border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 6px; padding: 4px 8px; cursor: pointer;
+          color: var(--color-text-muted); transition: all 0.2s;
+        }
+        .sync-btn:hover { border-color: #1D9E75; color: #1D9E75; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .loading-state {
+          text-align: center; padding: 80px 0;
+          font-family: var(--font-mono); font-size: 13px;
+          color: var(--color-text-muted); letter-spacing: 0.1em;
+        }
+
         /* === FUNNEL FLOW === */
         .funnel-flow {
           display: flex;
@@ -465,12 +481,16 @@ export default function ProductsPage() {
           color: var(--tier-color);
           letter-spacing: 0.05em;
         }
-        .tier-price-note {
+
+        .tier-phase-badge {
           font-family: var(--font-mono);
           font-size: 9px;
-          color: var(--color-cyan);
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: var(--color-accent-cyan);
+          background: rgba(62, 247, 232, 0.06);
+          border: 1px solid rgba(62, 247, 232, 0.12);
+          padding: 2px 10px;
+          border-radius: 4px;
         }
 
         .tier-status {
@@ -549,16 +569,101 @@ export default function ProductsPage() {
           position: relative;
         }
         .detail-features li::before {
-          content: '›';
+          content: '>';
           position: absolute;
           left: 0;
           color: var(--tier-color);
           font-weight: 700;
         }
 
+        /* === CURRICULUM === */
+        .curriculum-section {
+          margin: 20px 0;
+          padding: 20px;
+          background: rgba(124, 92, 252, 0.03);
+          border: 1px solid rgba(124, 92, 252, 0.1);
+          border-radius: 10px;
+        }
+        .curriculum-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          letter-spacing: 0.15em;
+          color: var(--color-accent-secondary, #7C5CFC);
+          font-weight: 700;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(124, 92, 252, 0.1);
+        }
+        .curriculum-block {
+          margin-bottom: 16px;
+        }
+        .curriculum-block:last-child {
+          margin-bottom: 0;
+        }
+        .curriculum-module-name {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: var(--tier-color);
+          margin-bottom: 10px;
+        }
+        .curriculum-phase-name {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: var(--tier-color);
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .phase-codename-tag {
+          font-size: 8px;
+          letter-spacing: 0.15em;
+          color: var(--color-text-muted);
+          background: rgba(255,255,255,0.04);
+          padding: 2px 8px;
+          border-radius: 4px;
+          border: 1px solid rgba(255,255,255,0.06);
+        }
+        .curriculum-lessons {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding-left: 12px;
+        }
+        .curriculum-lesson {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          font-size: 12px;
+        }
+        .lesson-num {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--tier-color);
+          min-width: 28px;
+          opacity: 0.7;
+        }
+        .lesson-title {
+          color: var(--color-text-secondary);
+        }
+        .lesson-subtitle {
+          color: var(--color-text-muted);
+          font-size: 11px;
+          font-style: italic;
+        }
+
         .tier-links {
           display: flex;
           gap: 12px;
+          margin-top: 16px;
         }
 
         .tier-link-btn {
@@ -589,6 +694,19 @@ export default function ProductsPage() {
         .tier-link-btn.secondary:hover {
           color: var(--tier-color);
           border-color: var(--tier-border);
+        }
+
+        .tier-meta-bar {
+          display: flex;
+          gap: 20px;
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255,255,255,0.03);
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--color-text-muted);
+          opacity: 0.5;
+          letter-spacing: 0.05em;
         }
 
         /* === FLOW CONNECTOR === */

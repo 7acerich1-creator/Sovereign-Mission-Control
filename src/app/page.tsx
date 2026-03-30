@@ -90,9 +90,13 @@ type VidRushEntry = {
 
 type GlitchEntry = {
   id: string;
+  title: string;
   severity: string;
   description: string;
+  source: string;
+  resolved: boolean;
   detected_at: string;
+  created_at: string;
 };
 
 type CrewTask = {
@@ -409,7 +413,7 @@ export default function MissionControl() {
   async function dismissGlitch(glitchId: string) {
     const { error } = await supabase
       .from('glitch_log')
-      .update({ severity: 'resolved' })
+      .update({ resolved: true })
       .eq('id', glitchId);
     if (!error) {
       setGlitches(prev => prev.filter(g => g.id !== glitchId));
@@ -546,7 +550,8 @@ export default function MissionControl() {
     const { data } = await supabase
       .from("glitch_log")
       .select("*")
-      .order("detected_at", { ascending: false })
+      .eq("resolved", false)
+      .order("created_at", { ascending: false })
       .limit(10);
     if (data) setGlitches(data);
   }
