@@ -29,6 +29,14 @@ import {
   Square,
   CheckCircle,
   RotateCcw,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  Archive,
+  Inbox,
+  PenTool,
+  BarChart3,
+  Zap,
 } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
@@ -85,6 +93,53 @@ type GlitchEntry = {
   severity: string;
   description: string;
   detected_at: string;
+};
+
+type CrewTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  assigned_to: string | null;
+  type: string | null;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ContentDraft = {
+  id: string;
+  agent_name: string;
+  draft_type: string;
+  title: string;
+  body: string;
+  platform: string | null;
+  status: string;
+  created_at: string;
+};
+
+type Briefing = {
+  id: string;
+  agent_name: string;
+  briefing_type: string;
+  title: string;
+  body: string;
+  priority: string | null;
+  requires_action: boolean;
+  status: string;
+  created_at: string;
+};
+
+type StripeMetrics = {
+  mrr: number;
+  arr: number;
+  active_subscriptions: number;
+  total_customers: number;
+  total_charges: number;
+  balance: number;
+  velocity: number;
+  fetched_at: string;
 };
 
 /* ---------------- AGENT CONFIG ---------------- */
@@ -231,6 +286,10 @@ export default function MissionControl() {
   const [contentTransmissions, setContentTransmissions] = useState<ContentTransmission[]>([]);
   const [vidRush, setVidRush] = useState<VidRushEntry[]>([]);
   const [glitches, setGlitches] = useState<GlitchEntry[]>([]);
+  const [crewTasks, setCrewTasks] = useState<CrewTask[]>([]);
+  const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>([]);
+  const [briefings, setBriefings] = useState<Briefing[]>([]);
+  const [stripeMetrics, setStripeMetrics] = useState<StripeMetrics | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [chatMessages, setChatMessages] = useState<{ id: string; agent_name: string; sender: string; content: string; created_at: string; voice_played?: boolean }[]>([]);
@@ -492,6 +551,106 @@ export default function MissionControl() {
     if (data) setGlitches(data);
   }
 
+  async function fetchCrewTasks() {
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .in("status", ["To Do", "In Progress"])
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setCrewTasks(data);
+  }
+
+  async function fetchContentDrafts() {
+    const { data } = await supabase
+      .from("content_drafts")
+      .select("*")
+      .in("status", ["pending_review", "revision_requested"])
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (data) setContentDrafts(data);
+  }
+
+  async function fetchBriefings() {
+    const { data } = await supabase
+      .from("briefings")
+      .select("*")
+      .in("status", ["unread", "read"])
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (data) setBriefings(data);
+  }
+
+  async function fetchStripeMetrics() {
+    const { data } = await supabase
+      .from("stripe_metrics")
+      .select("*")
+      .eq("period_label", "current")
+      .limit(1)
+      .single();
+    if (data) setStripeMetrics(data);
+  }
+
+  async function approveCrewTask(taskId: string) {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: "In Progress", updated_at: new Date().toISOString() })
+      .eq("id", taskId);
+    if (!error) {
+      setCrewTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "In Progress" } : t));
+    }
+  }
+
+  async function completeCrewTask(taskId: string) {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: "Complete", updated_at: new Date().toISOString() })
+      .eq("id", taskId);
+    if (!error) {
+      setCrewTasks(prev => prev.filter(t => t.id !== taskId));
+    }
+  }
+
+  async function approveDraft(draftId: string) {
+    const { error } = await supabase
+      .from("content_drafts")
+      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .eq("id", draftId);
+    if (!error) {
+      setContentDrafts(prev => prev.filter(d => d.id !== draftId));
+    }
+  }
+
+  async function rejectDraft(draftId: string) {
+    const { error } = await supabase
+      .from("content_drafts")
+      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+      .eq("id", draftId);
+    if (!error) {
+      setContentDrafts(prev => prev.filter(d => d.id !== draftId));
+    }
+  }
+
+  async function markBriefingRead(briefingId: string) {
+    const { error } = await supabase
+      .from("briefings")
+      .update({ status: "read", read_at: new Date().toISOString() })
+      .eq("id", briefingId);
+    if (!error) {
+      setBriefings(prev => prev.map(b => b.id === briefingId ? { ...b, status: "read" } : b));
+    }
+  }
+
+  async function archiveBriefing(briefingId: string) {
+    const { error } = await supabase
+      .from("briefings")
+      .update({ status: "archived" })
+      .eq("id", briefingId);
+    if (!error) {
+      setBriefings(prev => prev.filter(b => b.id !== briefingId));
+    }
+  }
+
   /* -- INITIAL FETCH + REALTIME -- */
 
   useEffect(() => {
@@ -501,6 +660,10 @@ export default function MissionControl() {
     fetchCommandQueue();
     fetchContentPipeline();
     fetchGlitches();
+    fetchCrewTasks();
+    fetchContentDrafts();
+    fetchBriefings();
+    fetchStripeMetrics();
 
     const ch = supabase
       .channel("ceo-dashboard-realtime")
@@ -511,6 +674,10 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "content_transmissions" }, () => fetchContentPipeline())
       .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
       .on("postgres_changes", { event: "*", schema: "public", table: "glitch_log" }, () => fetchGlitches())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchCrewTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_drafts" }, () => fetchContentDrafts())
+      .on("postgres_changes", { event: "*", schema: "public", table: "briefings" }, () => fetchBriefings())
+      .on("postgres_changes", { event: "*", schema: "public", table: "stripe_metrics" }, () => fetchStripeMetrics())
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
@@ -814,49 +981,50 @@ export default function MissionControl() {
         </div>
       </section>
 
-      {/* ======= SECTION 3 — ACTIVE GOALS & TASKS ======= */}
+      {/* ======= SECTION 3 — CREW TASK BOARD ======= */}
       <section className="dashboard-section">
         <div className="section-header-row">
-          <h2 className="section-heading">ACTIVE GOALS & TASKS</h2>
-          <span className="section-badge">{commandQueue.length} ACTIVE</span>
+          <h2 className="section-heading">CREW TASK BOARD</h2>
+          <span className="section-badge">{crewTasks.length} ACTIVE</span>
         </div>
         <div className="card table-card">
-          <div className="table-head">
+          <div className="table-head crew-task-head">
             <span>AGENT</span>
             <span>TASK</span>
+            <span>CATEGORY</span>
+            <span>PRIORITY</span>
+            <span>TYPE</span>
             <span>STATUS</span>
             <span>ACTION</span>
           </div>
-          {commandQueue.length > 0 ? (
-            commandQueue.map((task) => (
-              <div key={task.id} className="table-row">
-                <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
-                <span className="cell-command">{task.command}</span>
-                <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
+          {crewTasks.length > 0 ? (
+            crewTasks.map((task) => (
+              <div key={task.id} className="table-row crew-task-row">
+                <span className="cell-agent">{task.assigned_to || "Unassigned"}</span>
+                <span className="cell-command" title={task.description ?? undefined}>{task.title}</span>
+                <span className={`cell-category cat-${task.category?.toLowerCase().replace(/\s/g, '-')}`}>{task.category || "—"}</span>
+                <span className={`cell-priority pri-${task.priority?.toLowerCase()}`}>{task.priority}</span>
+                <span className={`cell-type type-${task.type}`}>
+                  {task.type === 'ai' ? <><Bot size={12} /> AI</> : <><Users size={12} /> Human</>}
+                </span>
+                <span className={`cell-status ${task.status?.toLowerCase().replace(/\s/g, '-')}`}>{task.status}</span>
                 <span className="cell-actions">
-                  <button
-                    className="task-action-btn complete-btn"
-                    title="Mark completed"
-                    onClick={() => updateTaskStatus(task.id, 'completed')}
-                  >
-                    <CheckCircle size={14} />
-                  </button>
-                  {task.status?.toLowerCase() === 'pending' && (
+                  {task.status === "To Do" && (
                     <button
                       className="task-action-btn activate-btn"
-                      title="Activate task"
-                      onClick={() => updateTaskStatus(task.id, 'active')}
+                      title="Approve — move to In Progress"
+                      onClick={() => approveCrewTask(task.id)}
                     >
-                      <Play size={14} />
+                      <ThumbsUp size={14} />
                     </button>
                   )}
-                  {task.status?.toLowerCase() === 'active' && (
+                  {task.status === "In Progress" && (
                     <button
-                      className="task-action-btn pause-btn"
-                      title="Return to pending"
-                      onClick={() => updateTaskStatus(task.id, 'pending')}
+                      className="task-action-btn complete-btn"
+                      title="Mark complete"
+                      onClick={() => completeCrewTask(task.id)}
                     >
-                      <RotateCcw size={14} />
+                      <CheckCircle size={14} />
                     </button>
                   )}
                 </span>
@@ -866,6 +1034,73 @@ export default function MissionControl() {
             <div className="table-empty">
               <Terminal size={24} />
               <span>NO PENDING TASKS IN QUEUE</span>
+            </div>
+          )}
+        </div>
+
+        {/* Legacy command queue — fallback */}
+        {commandQueue.length > 0 && (
+          <div className="card table-card" style={{ marginTop: 12 }}>
+            <div className="sub-header" style={{ padding: '8px 16px' }}>
+              <Terminal size={14} />
+              <span>COMMAND QUEUE (LEGACY)</span>
+              <span className="sub-count">{commandQueue.length}</span>
+            </div>
+            {commandQueue.map((task) => (
+              <div key={task.id} className="table-row">
+                <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
+                <span className="cell-command">{task.command}</span>
+                <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
+                <span className="cell-actions">
+                  <button className="task-action-btn complete-btn" title="Complete" onClick={() => updateTaskStatus(task.id, 'completed')}>
+                    <CheckCircle size={14} />
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ======= SECTION 3B — BRIEFINGS & INTEL ======= */}
+      <section className="dashboard-section">
+        <div className="section-header-row">
+          <h2 className="section-heading">BRIEFINGS & INTEL</h2>
+          <span className="section-badge">{briefings.filter(b => b.status === 'unread').length} UNREAD</span>
+        </div>
+        <div className="card briefings-card">
+          {briefings.length > 0 ? (
+            briefings.map((b) => (
+              <div key={b.id} className={`briefing-row ${b.status === 'unread' ? 'briefing-unread' : ''}`}>
+                <div className="briefing-left">
+                  <div className={`briefing-priority-dot pri-${b.priority}`} />
+                  <div className="briefing-content">
+                    <div className="briefing-header-row">
+                      <span className="briefing-agent">{b.agent_name}</span>
+                      <span className={`briefing-type-badge bt-${b.briefing_type?.replace(/_/g, '-')}`}>{b.briefing_type?.replace(/_/g, ' ')}</span>
+                      {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
+                    </div>
+                    <span className="briefing-title">{b.title}</span>
+                    <span className="briefing-body">{b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body}</span>
+                    <span className="briefing-time">{timeAgo(b.created_at)}</span>
+                  </div>
+                </div>
+                <div className="briefing-actions">
+                  {b.status === 'unread' && (
+                    <button className="task-action-btn activate-btn" title="Mark read" onClick={() => markBriefingRead(b.id)}>
+                      <Eye size={14} />
+                    </button>
+                  )}
+                  <button className="task-action-btn pause-btn" title="Archive" onClick={() => archiveBriefing(b.id)}>
+                    <Archive size={14} />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="table-empty">
+              <Inbox size={24} />
+              <span>NO BRIEFINGS — ALL CLEAR</span>
             </div>
           )}
         </div>
@@ -917,6 +1152,38 @@ export default function MissionControl() {
               <div className="pipeline-empty">No content transmissions</div>
             )}
           </div>
+
+          {/* Content Drafts from Crew */}
+          <div className="pipeline-sub">
+            <div className="sub-header">
+              <PenTool size={14} />
+              <span>CONTENT DRAFTS</span>
+              <span className="sub-count">{contentDrafts.length}</span>
+            </div>
+            {contentDrafts.length > 0 ? (
+              contentDrafts.map((d) => (
+                <div key={d.id} className="draft-item">
+                  <div className="draft-top">
+                    <span className="draft-agent">{d.agent_name}</span>
+                    <span className={`pi-status ${d.draft_type}`}>{d.draft_type}</span>
+                    <span className="pi-time">{timeAgo(d.created_at)}</span>
+                  </div>
+                  <span className="draft-title">{d.title}</span>
+                  <span className="draft-preview">{d.body?.length > 120 ? d.body.slice(0, 120) + "..." : d.body}</span>
+                  <div className="draft-actions">
+                    <button className="task-action-btn activate-btn" title="Approve" onClick={() => approveDraft(d.id)}>
+                      <ThumbsUp size={12} /> <span>Approve</span>
+                    </button>
+                    <button className="task-action-btn pause-btn" title="Reject" onClick={() => rejectDraft(d.id)}>
+                      <ThumbsDown size={12} /> <span>Reject</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="pipeline-empty">No drafts pending review</div>
+            )}
+          </div>
         </section>
 
         {/* ======= RIGHT COLUMN ======= */}
@@ -952,6 +1219,56 @@ export default function MissionControl() {
                   <DollarSign size={24} />
                   <span>NO REVENUE ENTRIES YET</span>
                 </div>
+              )}
+            </div>
+          </section>
+
+          {/* ======= SECTION 5B — STRIPE METRICS ======= */}
+          <section className="dashboard-section">
+            <div className="section-header-row">
+              <h2 className="section-heading">STRIPE METRICS</h2>
+              <BarChart3 size={16} className="section-icon" />
+            </div>
+            <div className="card stripe-metrics-card">
+              {stripeMetrics ? (
+                <div className="stripe-grid">
+                  <div className="stripe-metric">
+                    <span className="sm-label">MRR</span>
+                    <span className="sm-value">${Number(stripeMetrics.mrr).toLocaleString()}</span>
+                  </div>
+                  <div className="stripe-metric">
+                    <span className="sm-label">ARR</span>
+                    <span className="sm-value">${Number(stripeMetrics.arr).toLocaleString()}</span>
+                  </div>
+                  <div className="stripe-metric">
+                    <span className="sm-label">ACTIVE SUBS</span>
+                    <span className="sm-value">{stripeMetrics.active_subscriptions}</span>
+                  </div>
+                  <div className="stripe-metric">
+                    <span className="sm-label">CUSTOMERS</span>
+                    <span className="sm-value">{stripeMetrics.total_customers}</span>
+                  </div>
+                  <div className="stripe-metric">
+                    <span className="sm-label">CHARGES</span>
+                    <span className="sm-value">{stripeMetrics.total_charges}</span>
+                  </div>
+                  <div className="stripe-metric">
+                    <span className="sm-label">BALANCE</span>
+                    <span className="sm-value sm-balance">${Number(stripeMetrics.balance).toLocaleString()}</span>
+                  </div>
+                  <div className="stripe-metric sm-velocity-row">
+                    <span className="sm-label">VELOCITY</span>
+                    <span className="sm-value sm-velocity">{Number(stripeMetrics.velocity).toFixed(2)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="table-empty">
+                  <BarChart3 size={24} />
+                  <span>AWAITING STRIPE SYNC</span>
+                </div>
+              )}
+              {stripeMetrics?.fetched_at && (
+                <div className="stripe-updated">Last sync: {timeAgo(stripeMetrics.fetched_at)}</div>
               )}
             </div>
           </section>
@@ -1813,6 +2130,189 @@ export default function MissionControl() {
         .activate-btn:hover { color: #C9A84C; border-color: #C9A84C; }
         .pause-btn:hover { color: #fa709a; border-color: #fa709a; }
 
+        /* -- CREW TASK BOARD -- */
+        .crew-task-head {
+          grid-template-columns: 100px 1fr 90px 70px 70px 90px 70px;
+        }
+        .crew-task-row {
+          display: grid;
+          grid-template-columns: 100px 1fr 90px 70px 70px 90px 70px;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          border-bottom: 1px solid var(--border-color);
+          font-size: 12px;
+        }
+        .cell-category {
+          font-size: 9px;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          text-align: center;
+        }
+        .cat-content { color: #fddb92; border-color: rgba(253,219,146,0.3); }
+        .cat-distribution { color: #4facfe; border-color: rgba(79,172,254,0.3); }
+        .cat-growth { color: #43e97b; border-color: rgba(67,233,123,0.3); }
+        .cat-revenue { color: #C9A84C; border-color: rgba(201,168,76,0.3); }
+        .cat-strategy { color: #E67E22; border-color: rgba(230,126,34,0.3); }
+        .cat-operations { color: #C0392B; border-color: rgba(192,57,43,0.3); }
+        .cell-priority {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+        }
+        .pri-high, .pri-critical { color: #D95555; }
+        .pri-medium { color: #C9A84C; }
+        .pri-low { color: var(--color-text-muted); }
+        .cell-type {
+          font-size: 10px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-family: var(--font-mono);
+        }
+        .type-ai { color: #4facfe; }
+        .type-human { color: var(--color-text-muted); }
+        .cell-status.to-do { color: #C9A84C; }
+        .cell-status.in-progress { color: #43e97b; }
+
+        /* -- BRIEFINGS -- */
+        .briefings-card {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+        }
+        .briefing-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding: 14px 16px;
+          border-bottom: 1px solid var(--border-color);
+          transition: background 0.2s;
+        }
+        .briefing-row:hover { background: rgba(255,255,255,0.02); }
+        .briefing-unread { background: rgba(79, 172, 254, 0.03); border-left: 3px solid #4facfe; }
+        .briefing-left { display: flex; gap: 12px; flex: 1; min-width: 0; }
+        .briefing-priority-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          margin-top: 6px;
+          flex-shrink: 0;
+        }
+        .briefing-priority-dot.pri-critical { background: #D95555; box-shadow: 0 0 8px rgba(217,85,85,0.5); }
+        .briefing-priority-dot.pri-high { background: #E67E22; }
+        .briefing-priority-dot.pri-medium { background: #C9A84C; }
+        .briefing-priority-dot.pri-low { background: var(--color-text-muted); }
+        .briefing-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .briefing-header-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .briefing-agent {
+          font-size: 11px;
+          font-family: var(--font-mono);
+          font-weight: 600;
+          color: var(--color-text-primary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .briefing-type-badge {
+          font-size: 9px;
+          font-family: var(--font-mono);
+          padding: 1px 6px;
+          border-radius: 4px;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: var(--color-text-muted);
+        }
+        .bt-trend-scan { color: #4facfe; border-color: rgba(79,172,254,0.3); }
+        .bt-revenue-report { color: #C9A84C; border-color: rgba(201,168,76,0.3); }
+        .bt-risk-alert { color: #D95555; border-color: rgba(217,85,85,0.3); }
+        .bt-strategic-analysis { color: #43e97b; border-color: rgba(67,233,123,0.3); }
+        .bt-pipeline-status { color: #E67E22; border-color: rgba(230,126,34,0.3); }
+        .briefing-action-flag {
+          font-size: 9px;
+          color: #D95555;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+        }
+        .briefing-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-text-primary);
+        }
+        .briefing-body {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.4;
+        }
+        .briefing-time {
+          font-size: 10px;
+          color: var(--color-text-muted);
+          font-family: var(--font-mono);
+        }
+        .briefing-actions {
+          display: flex;
+          gap: 6px;
+          flex-shrink: 0;
+          margin-left: 12px;
+        }
+
+        /* -- CONTENT DRAFTS -- */
+        .draft-item {
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-color);
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .draft-top {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .draft-agent {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          font-weight: 600;
+          text-transform: uppercase;
+          color: var(--color-text-primary);
+        }
+        .draft-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-text-primary);
+        }
+        .draft-preview {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.4;
+        }
+        .draft-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 4px;
+        }
+        .draft-actions .task-action-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 10px;
+        }
+        .draft-actions .task-action-btn span {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
         .cell-time {
           font-size: 10px;
           font-family: var(--font-mono);
@@ -2087,6 +2587,55 @@ export default function MissionControl() {
           background: rgba(29,158,117,0.1);
         }
 
+        /* -- STRIPE METRICS -- */
+        .stripe-metrics-card {
+          padding: 0;
+        }
+        .stripe-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0;
+        }
+        .stripe-metric {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 16px;
+          border-bottom: 1px solid var(--border-color);
+          border-right: 1px solid var(--border-color);
+        }
+        .stripe-metric:nth-child(3n) { border-right: none; }
+        .sm-label {
+          font-size: 9px;
+          font-family: var(--font-mono);
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+        }
+        .sm-value {
+          font-size: 18px;
+          font-weight: 800;
+          color: var(--color-text-primary);
+          font-family: var(--font-mono);
+        }
+        .sm-balance { color: #1D9E75; }
+        .sm-velocity { color: #C9A84C; }
+        .sm-velocity-row {
+          grid-column: 1 / -1;
+          border-right: none;
+          text-align: center;
+          align-items: center;
+        }
+        .stripe-updated {
+          font-size: 10px;
+          font-family: var(--font-mono);
+          color: var(--color-text-muted);
+          padding: 8px 16px;
+          text-align: right;
+          border-top: 1px solid var(--border-color);
+        }
+
         /* ====== LIGHT MODE OVERRIDES ====== */
         :global([data-theme="light"]) .crew-hero-panel {
           background: linear-gradient(135deg, #FFFFFF, #F8F7F4) !important;
@@ -2192,6 +2741,21 @@ export default function MissionControl() {
           background: rgba(201, 168, 76, 0.05) !important;
           border-color: rgba(201, 168, 76, 0.12) !important;
         }
+        :global([data-theme="light"]) .briefing-unread {
+          background: rgba(79, 172, 254, 0.05) !important;
+          border-left-color: #4facfe !important;
+        }
+        :global([data-theme="light"]) .cell-category {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .briefing-type-badge {
+          background: rgba(0, 0, 0, 0.03) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        :global([data-theme="light"]) .draft-item {
+          border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+        }
 
         /* -- RESPONSIVE -- */
         @media (max-width: 1200px) {
@@ -2204,6 +2768,10 @@ export default function MissionControl() {
           .msb-header { flex-direction: column; gap: 16px; }
           .msb-title { font-size: 20px; }
           .countdown-number { font-size: 32px; }
+          .crew-task-head, .crew-task-row {
+            grid-template-columns: 80px 1fr 70px 60px 60px 70px 50px;
+            font-size: 10px;
+          }
         }
       `}</style>
     </div>
