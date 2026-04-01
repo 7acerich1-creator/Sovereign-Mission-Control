@@ -2,106 +2,29 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 /* ==========================================================
-   GROUP CHAT API — Maven Crew War Room
+   GROUP CHAT API — Maven Crew War Room (Phase 3: Railway Bridge)
 
-   POST /api/chat-group  — send message, get response from
-                           a rotating crew member
+   POST /api/chat-group  — send message, get responses from
+                           rotating crew via Railway agent loops
    GET  /api/chat-group  — fetch group chat history
    DELETE /api/chat-group — delete or clear group chat
+
+   Routes through Railway /api/chat-bridge for REAL agent loops.
    ========================================================== */
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const RAILWAY_BRIDGE_URL = process.env.RAILWAY_BRIDGE_URL || 'https://gravity-claw-production-d849.up.railway.app/api/chat-bridge';
+const BRIDGE_TIMEOUT_MS = 60000;
 
 const CREW_AGENTS = ['yuki', 'sapphire', 'anita', 'alfred', 'veritas', 'vector'] as const;
 
-const CREW_PERSONALITIES: Record<string, string> = {
-  yuki: 'Yuki (Creative & Content — THE SIGNAL): Energetic, punchy, viral-minded. Speaks with creative fire.',
-  sapphire: 'Sapphire (Core API & Orchestration — THE NERVE CENTER): Precise, commanding, decisive. The COO.',
-  anita: 'Anita (Outreach & Nurture — THE OPERATOR): Warm but strategic. Persuasive with empathy.',
-  alfred: 'Alfred (Operations & Automation — THE SCALPEL): Surgical precision, calm, dry wit. Calls Ace "sir".',
-  veritas: 'Veritas (Truth Engine & Research — THE ORACLE): Deep, analytical, philosophical. Questions assumptions.',
-  vector: 'Vector (Analytics & Intelligence — THE FUNNEL): Sharp, data-driven, pattern-obsessed.',
+const FALLBACK_TEMPLATES: Record<string, string[]> = {
+  yuki: ['Signal received, Architect. Creative engines spinning.', 'On it. Hooks incoming.'],
+  sapphire: ['Logged. Routing through the system now.', 'All nodes aligned. Processing.'],
+  anita: ['Received, Ace. Adjusting engagement protocols.', 'Copy. Nurture sequences updating.'],
+  alfred: ['Directive acknowledged, sir. Systems responding.', 'Executing. Diagnostics running alongside.'],
+  veritas: ['Analyzing. Cross-referencing the matrix.', 'Truth engine engaged. Scanning.'],
+  vector: ['Data point captured. Patterns updating.', 'Intelligence feeds correlating now.'],
 };
-
-function pickResponder(recentHistory: any[]): string {
-  // Pick an agent that hasn't spoken recently, with slight randomness
-  const recentAgents = recentHistory
-    .filter(m => m.sender !== 'architect')
-    .slice(-3)
-    .map(m => m.responder_agent)
-    .filter(Boolean);
-
-  const available = CREW_AGENTS.filter(a => !recentAgents.includes(a));
-  const pool = available.length > 0 ? available : [...CREW_AGENTS];
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-async function getGroupResponse(responder: string, userMessage: string, recentHistory: any[]): Promise<string> {
-  const personality = CREW_PERSONALITIES[responder];
-
-  const systemPrompt = `You are ${responder.charAt(0).toUpperCase() + responder.slice(1)}, responding in the Maven Crew group chat — a war room where all 6 agents and the Architect (Ace Richie) communicate.
-
-YOUR PERSONALITY: ${personality}
-
-CONTEXT: This is a group channel. Other agents may have spoken before you. Keep it natural — like a team huddle.
-
-RULES:
-- Address Ace as "Architect" or "Ace"
-- Keep responses concise (1-3 sentences)
-- Never break character
-- Be mission-focused. This is the war room, not small talk.
-- Reference the Sovereign Synthesis framework naturally (Protocol 77, Firmware Updates, Escape Velocity, etc.)
-- You can reference or build on what other agents said if relevant`;
-
-  if (!ANTHROPIC_API_KEY) {
-    const fallbacks: Record<string, string[]> = {
-      yuki: ['Signal received, Architect. Creative engines spinning.', 'On it. Hooks incoming.'],
-      sapphire: ['Logged. Routing through the system now.', 'All nodes aligned. Processing.'],
-      anita: ['Received, Ace. Adjusting engagement protocols.', 'Copy. Nurture sequences updating.'],
-      alfred: ['Directive acknowledged, sir. Systems responding.', 'Executing. Diagnostics running alongside.'],
-      veritas: ['Analyzing. Cross-referencing the matrix.', 'Truth engine engaged. Scanning.'],
-      vector: ['Data point captured. Patterns updating.', 'Intelligence feeds correlating now.'],
-    };
-    const templates = fallbacks[responder] || ['Transmission received.'];
-    return templates[Math.floor(Math.random() * templates.length)];
-  }
-
-  const messages = recentHistory.slice(-8).map(msg => ({
-    role: msg.sender === 'architect' ? 'user' as const : 'assistant' as const,
-    content: msg.sender === 'architect'
-      ? msg.content
-      : `[${(msg.responder_agent || 'agent').toUpperCase()}]: ${msg.content}`,
-  }));
-  messages.push({ role: 'user' as const, content: userMessage });
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(`[GROUP-CHAT] Anthropic error ${response.status}`);
-      const fallbacks = ['Transmission received, Architect.', 'Copy. Processing now.'];
-      return fallbacks[Math.floor(Math.random() * fallbacks.length)];
-    }
-    const data = await response.json();
-    return data.content?.[0]?.text || 'Transmission received.';
-  } catch (err) {
-    console.error('[GROUP-CHAT] AI call failed:', err);
-    return 'Transmission received. Processing.';
-  }
-}
 
 function pickMultipleResponders(recentHistory: any[], count: number): string[] {
   const recentAgents = recentHistory
@@ -111,11 +34,62 @@ function pickMultipleResponders(recentHistory: any[], count: number): string[] {
     .filter(Boolean);
 
   const shuffled = [...CREW_AGENTS].sort(() => Math.random() - 0.5);
-  // Prefer agents who haven't spoken recently
   const fresh = shuffled.filter(a => !recentAgents.includes(a));
   const stale = shuffled.filter(a => recentAgents.includes(a));
   const ordered = [...fresh, ...stale];
   return ordered.slice(0, count);
+}
+
+async function getBridgeResponse(agentKey: string, userMessage: string, recentHistory: any[]): Promise<string> {
+  const templates = FALLBACK_TEMPLATES[agentKey] || ['Transmission received.'];
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS);
+
+    // Inject group context so the agent knows other agents have spoken
+    const groupContext = recentHistory
+      .filter(m => m.sender !== 'architect' && m.responder_agent)
+      .slice(-4)
+      .map(m => `[${m.responder_agent.toUpperCase()}]: ${m.content}`)
+      .join('\n');
+
+    const contextualMessage = groupContext
+      ? `[GROUP WAR ROOM] The Architect said: "${userMessage}"\n\nOther agents have responded:\n${groupContext}\n\nNow give YOUR take — concise (1-3 sentences), mission-focused, stay in character.`
+      : `[GROUP WAR ROOM] The Architect said: "${userMessage}"\n\nYou're the first to respond. Give a concise take (1-3 sentences), mission-focused, stay in character.`;
+
+    const response = await fetch(RAILWAY_BRIDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_name: agentKey, content: contextualMessage }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`[GROUP-BRIDGE] Railway error ${response.status} for ${agentKey}`);
+      return templates[Math.floor(Math.random() * templates.length)];
+    }
+
+    const data = await response.json();
+    let agentResponse: string;
+    if (data.result) {
+      try {
+        const parsed = JSON.parse(data.result);
+        agentResponse = parsed.response || data.result;
+      } catch {
+        agentResponse = data.result;
+      }
+    } else {
+      agentResponse = data.response || templates[0];
+    }
+
+    return agentResponse;
+  } catch (err: any) {
+    console.error(`[GROUP-BRIDGE] ${agentKey} failed:`, err.message);
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
 }
 
 export async function POST(req: Request) {
@@ -148,7 +122,7 @@ export async function POST(req: Request) {
 
     // Generate responses sequentially so each agent can see what the previous said
     for (const responder of responders) {
-      const agentResponse = await getGroupResponse(responder, content.trim(), [
+      const agentResponse = await getBridgeResponse(responder, content.trim(), [
         ...recentHistory,
         ...responses.map(r => ({ sender: 'agent', responder_agent: r.agent, content: r.content })),
       ]);
