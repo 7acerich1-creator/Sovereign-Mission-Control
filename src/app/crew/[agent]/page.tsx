@@ -295,8 +295,8 @@ export default function AgentChatPage() {
           display: flex;
           flex-direction: column;
           height: 100vh;
-          background: #0A0A0F;
-          color: #e0e0e0;
+          background: var(--color-bg-deepest);
+          color: var(--color-text-primary);
           font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
         }
 
@@ -306,10 +306,9 @@ export default function AgentChatPage() {
           align-items: center;
           gap: 16px;
           padding: 16px 24px;
-          background: rgba(14, 14, 20, 0.95);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: var(--color-bg-surface);
+          border-bottom: 1px solid var(--border-color, rgba(26,26,46,0.1));
           flex-shrink: 0;
-          backdrop-filter: blur(12px);
         }
         .acp-back-btn {
           display: flex;
@@ -365,7 +364,7 @@ export default function AgentChatPage() {
         .acp-role {
           font-family: var(--font-mono, monospace);
           font-size: 10px;
-          color: rgba(255,255,255,0.4);
+          color: var(--color-text-muted);
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
@@ -380,14 +379,14 @@ export default function AgentChatPage() {
           border-radius: 4px;
           margin-left: 8px;
         }
-        .acp-status.online { color: #43e97b; background: rgba(67, 233, 123, 0.08); }
-        .acp-status.offline { color: #666; background: rgba(255,255,255,0.03); }
+        .acp-status.online { color: #1D9E75; background: rgba(29, 158, 117, 0.08); }
+        .acp-status.offline { color: var(--color-text-muted); background: var(--color-bg-panel); }
         .acp-controls { display: flex; gap: 6px; }
         .acp-ctrl-btn {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--color-bg-panel);
+          border: 1px solid var(--border-color, rgba(26,26,46,0.1));
           border-radius: 8px;
-          color: rgba(255,255,255,0.5);
+          color: var(--color-text-muted);
           padding: 8px;
           cursor: pointer;
           transition: all 0.2s;
@@ -395,9 +394,8 @@ export default function AgentChatPage() {
           align-items: center;
         }
         .acp-ctrl-btn:hover {
-          color: #fff;
+          color: var(--color-text-primary);
           border-color: var(--agent-color);
-          background: rgba(255,255,255,0.08);
         }
 
         /* FEED */
@@ -409,20 +407,20 @@ export default function AgentChatPage() {
           flex-direction: column;
           gap: 12px;
           scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,0.08) transparent;
+          scrollbar-color: var(--color-text-disabled) transparent;
         }
         .acp-loading, .acp-load-more, .acp-empty {
           text-align: center;
           font-family: var(--font-mono, monospace);
           font-size: 11px;
-          color: rgba(255,255,255,0.3);
+          color: var(--color-text-muted);
           padding: 12px;
         }
         .acp-load-more {
           cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.08);
+          border: 1px solid var(--border-color, rgba(26,26,46,0.1));
           border-radius: 6px;
-          background: rgba(255,255,255,0.02);
+          background: var(--color-bg-panel);
           transition: all 0.2s;
         }
         .acp-load-more:hover { border-color: var(--agent-color); color: var(--agent-color); }
@@ -436,14 +434,14 @@ export default function AgentChatPage() {
           border-radius: 12px;
           transition: background 0.2s;
         }
-        .acp-msg:hover { background: rgba(255,255,255,0.02); }
+        .acp-msg:hover { background: var(--color-bg-panel); }
         .acp-msg-arch {
           border-left: 3px solid #E5850F;
-          background: rgba(229, 133, 15, 0.03);
+          background: rgba(229, 133, 15, 0.04);
         }
         .acp-msg-agent {
           border-left: 3px solid var(--agent-color);
-          background: rgba(255,255,255,0.015);
+          background: var(--color-bg-surface);
         }
         .acp-msg-avatar {
           width: 32px;
@@ -463,7 +461,7 @@ export default function AgentChatPage() {
           font-family: var(--font-mono, monospace);
           font-size: 9px;
           letter-spacing: 0.15em;
-          color: rgba(255,255,255,0.35);
+          color: var(--color-text-muted);
           display: block;
           margin-bottom: 4px;
         }
@@ -472,7 +470,7 @@ export default function AgentChatPage() {
         .acp-msg-text {
           font-size: 13px;
           line-height: 1.65;
-          color: rgba(255,255,255,0.85);
+          color: var(--color-text-primary);
           margin: 0;
           white-space: pre-wrap;
           word-break: break-word;
@@ -488,7 +486,7 @@ export default function AgentChatPage() {
         .acp-speak-btn, .acp-delete-btn {
           background: none;
           border: none;
-          color: rgba(255,255,255,0.25);
+          color: var(--color-text-disabled);
           cursor: pointer;
           padding: 4px;
           border-radius: 4px;
@@ -498,7 +496,7 @@ export default function AgentChatPage() {
         }
         .acp-speak-btn:hover { color: var(--agent-color); }
         .acp-speak-btn.speaking { color: #E5850F; }
-        .acp-delete-btn:hover { color: #e74c3c; }
+        .acp-delete-btn:hover { color: #D95555; }
 
         /* CLEAR */
         .acp-clear-btn {
@@ -508,16 +506,16 @@ export default function AgentChatPage() {
           margin: 0 24px 8px;
           padding: 6px 12px;
           background: none;
-          border: 1px solid rgba(255,255,255,0.06);
+          border: 1px solid var(--border-color, rgba(26,26,46,0.1));
           border-radius: 6px;
-          color: rgba(255,255,255,0.25);
+          color: var(--color-text-muted);
           font-size: 11px;
           font-family: var(--font-mono, monospace);
           cursor: pointer;
           transition: all 0.2s;
           align-self: flex-start;
         }
-        .acp-clear-btn:hover { color: #e74c3c; border-color: rgba(231, 76, 60, 0.3); }
+        .acp-clear-btn:hover { color: #D95555; border-color: rgba(217, 85, 85, 0.3); }
 
         /* INPUT BAR */
         .acp-input-bar {
@@ -525,18 +523,17 @@ export default function AgentChatPage() {
           align-items: center;
           gap: 10px;
           padding: 16px 24px;
-          background: rgba(14, 14, 20, 0.95);
-          border-top: 1px solid rgba(255,255,255,0.06);
+          background: var(--color-bg-surface);
+          border-top: 1px solid var(--border-color, rgba(26,26,46,0.1));
           flex-shrink: 0;
-          backdrop-filter: blur(12px);
         }
         .acp-input-icon { color: var(--agent-color); opacity: 0.5; flex-shrink: 0; }
         .acp-input {
           flex: 1;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--color-bg-panel);
+          border: 1px solid var(--border-color, rgba(26,26,46,0.1));
           border-radius: 10px;
-          color: #fff;
+          color: var(--color-text-primary);
           padding: 12px 16px;
           font-size: 13px;
           resize: none;
@@ -547,14 +544,14 @@ export default function AgentChatPage() {
           outline: none;
           border-color: var(--agent-color);
         }
-        .acp-input::placeholder { color: rgba(255,255,255,0.2); }
+        .acp-input::placeholder { color: var(--color-text-disabled); }
         .acp-send-btn {
           background: var(--agent-color);
           border: none;
           border-radius: 10px;
           padding: 12px;
           cursor: pointer;
-          color: #0A0A0F;
+          color: #fff;
           transition: all 0.2s;
           display: flex;
           align-items: center;
