@@ -26,6 +26,7 @@ import {
   Trash2,
   Maximize2,
   Minimize2,
+  ArrowLeft,
   Square,
   CheckCircle,
   RotateCcw,
@@ -293,6 +294,7 @@ export default function MissionControl() {
   const [crewTasks, setCrewTasks] = useState<CrewTask[]>([]);
   const [contentDrafts, setContentDrafts] = useState<ContentDraft[]>([]);
   const [briefings, setBriefings] = useState<Briefing[]>([]);
+  const [expandedBriefings, setExpandedBriefings] = useState<Set<string>>(new Set());
   const [stripeMetrics, setStripeMetrics] = useState<StripeMetrics | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
@@ -785,42 +787,64 @@ export default function MissionControl() {
             .slice(0, 8);
           return (
             <div className={`crew-hero-panel ${heroFullscreen ? 'hero-fullscreen' : ''}`} style={{ "--agent-color": agent.color } as React.CSSProperties}>
-              <div className="hero-controls">
-                <button className="hero-control-btn" onClick={async () => {
-                  if (!selectedAgent) return;
-                  const agentKey = selectedAgent.toLowerCase();
-                  // Find last agent message and last architect message
-                  const lastAgentMsg = [...chatMessages].reverse().find(m => m.sender === 'agent');
-                  const lastArchitectMsg = [...chatMessages].reverse().find(m => m.sender === 'architect');
-                  if (lastAgentMsg && lastArchitectMsg) {
-                    // Delete last agent response, then regenerate
-                    await fetch('/api/chat', {
-                      method: 'DELETE',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: lastAgentMsg.id }),
-                    });
-                    await fetch('/api/chat', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ agent_name: agentKey, content: lastArchitectMsg.content }),
-                    });
-                  } else {
-                    // No messages to regenerate — just refresh history
-                    fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`)
-                      .then(r => r.json())
-                      .then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } })
-                      .catch(() => {});
-                  }
-                }} title="Regenerate last response">
-                  <RotateCcw size={14} />
-                </button>
-                <button className="hero-control-btn" onClick={() => setHeroFullscreen(f => !f)} title={heroFullscreen ? "Exit fullscreen" : "Expand fullscreen"}>
-                  {heroFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
-                <button className="hero-control-btn" onClick={() => { setSelectedAgent(null); setMessageInput(""); setHeroFullscreen(false); }}>
-                  <X size={18} />
-                </button>
-              </div>
+              {/* FULLSCREEN BACK BAR */}
+              {heroFullscreen && (
+                <div className="hero-back-bar">
+                  <button className="hero-back-btn" onClick={() => setHeroFullscreen(false)}>
+                    <ArrowLeft size={16} />
+                    <span>Return to Command Center</span>
+                  </button>
+                  <div className="hero-back-agent-id">
+                    <span className="hero-back-dot" />
+                    <span className="hero-back-name">{agent.name}</span>
+                    <span className="hero-back-role">{agent.role}</span>
+                  </div>
+                  <div className="hero-controls-inline">
+                    <button className="hero-control-btn" onClick={async () => {
+                      if (!selectedAgent) return;
+                      const agentKey = selectedAgent.toLowerCase();
+                      const lastAgentMsg = [...chatMessages].reverse().find(m => m.sender === 'agent');
+                      const lastArchitectMsg = [...chatMessages].reverse().find(m => m.sender === 'architect');
+                      if (lastAgentMsg && lastArchitectMsg) {
+                        await fetch('/api/chat', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: lastAgentMsg.id }) });
+                        await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent_name: agentKey, content: lastArchitectMsg.content }) });
+                      } else {
+                        fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`).then(r => r.json()).then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } }).catch(() => {});
+                      }
+                    }} title="Regenerate last response">
+                      <RotateCcw size={14} />
+                    </button>
+                    <button className="hero-control-btn" onClick={() => setHeroFullscreen(false)} title="Exit fullscreen">
+                      <Minimize2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* NORMAL MODE CONTROLS */}
+              {!heroFullscreen && (
+                <div className="hero-controls">
+                  <button className="hero-control-btn" onClick={async () => {
+                    if (!selectedAgent) return;
+                    const agentKey = selectedAgent.toLowerCase();
+                    const lastAgentMsg = [...chatMessages].reverse().find(m => m.sender === 'agent');
+                    const lastArchitectMsg = [...chatMessages].reverse().find(m => m.sender === 'architect');
+                    if (lastAgentMsg && lastArchitectMsg) {
+                      await fetch('/api/chat', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: lastAgentMsg.id }) });
+                      await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent_name: agentKey, content: lastArchitectMsg.content }) });
+                    } else {
+                      fetch(`/api/chat?agent=${agentKey}&limit=${CHAT_PAGE_SIZE}`).then(r => r.json()).then(d => { if (d.messages) { setChatMessages(d.messages); setHasMoreMessages(d.messages.length >= CHAT_PAGE_SIZE); } }).catch(() => {});
+                    }
+                  }} title="Regenerate last response">
+                    <RotateCcw size={14} />
+                  </button>
+                  <button className="hero-control-btn" onClick={() => setHeroFullscreen(true)} title="Expand fullscreen">
+                    <Maximize2 size={16} />
+                  </button>
+                  <button className="hero-control-btn" onClick={() => { setSelectedAgent(null); setMessageInput(""); setHeroFullscreen(false); }}>
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
               <div className="hero-top">
                 <div className="hero-avatar-wrap">
                   <Image src={agent.avatar} alt={agent.name} width={140} height={140} className="crew-avatar-img" unoptimized />
@@ -1086,7 +1110,21 @@ export default function MissionControl() {
                       {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
                     </div>
                     <span className="briefing-title">{b.title}</span>
-                    <span className="briefing-body">{b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body}</span>
+                    <span className="briefing-body" style={{ whiteSpace: expandedBriefings.has(b.id) ? 'pre-wrap' : undefined }}>
+                      {expandedBriefings.has(b.id) ? b.body : (b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body)}
+                    </span>
+                    {b.body?.length > 160 && (
+                      <button
+                        className="briefing-expand-btn"
+                        onClick={() => setExpandedBriefings(prev => {
+                          const next = new Set(prev);
+                          if (next.has(b.id)) next.delete(b.id); else next.add(b.id);
+                          return next;
+                        })}
+                      >
+                        {expandedBriefings.has(b.id) ? '▲ Collapse' : '▼ Read full briefing'}
+                      </button>
+                    )}
                     <span className="briefing-time">{timeAgo(b.created_at)}</span>
                   </div>
                 </div>
@@ -1638,25 +1676,26 @@ export default function MissionControl() {
           z-index: 9999;
           border-radius: 0;
           margin: 0;
-          padding: 32px;
+          padding: 0 32px 32px 32px;
           overflow: hidden;
           animation: none;
           display: flex;
           flex-direction: column;
+          border-left: none;
+          background: #0D0D0D;
         }
         .hero-fullscreen .hero-controls {
-          flex-shrink: 0;
+          display: none;
         }
         .hero-fullscreen .hero-top {
-          flex-shrink: 0;
-          position: relative;
-          z-index: 5;
+          display: none;
         }
         .hero-fullscreen .hero-activity {
           flex: 1;
           min-height: 0;
           overflow-y: auto;
           margin-bottom: 12px;
+          margin-top: 0;
         }
         .hero-fullscreen .hero-activity-feed {
           max-height: none;
@@ -1664,6 +1703,66 @@ export default function MissionControl() {
         }
         .hero-fullscreen .hero-message-bar {
           flex-shrink: 0;
+        }
+
+        /* Back bar — fullscreen only */
+        .hero-back-bar {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 16px 0;
+          flex-shrink: 0;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          margin-bottom: 16px;
+        }
+        .hero-back-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          color: #E5850F;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          transition: all 0.2s;
+        }
+        .hero-back-btn:hover {
+          background: rgba(229, 133, 15, 0.1);
+          border-color: #E5850F;
+        }
+        .hero-back-agent-id {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+        }
+        .hero-back-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--agent-color);
+          box-shadow: 0 0 8px var(--agent-color);
+        }
+        .hero-back-name {
+          font-size: 16px;
+          font-weight: 800;
+          color: var(--agent-color);
+          letter-spacing: 0.06em;
+        }
+        .hero-back-role {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--color-text-muted);
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .hero-controls-inline {
+          display: flex;
+          gap: 6px;
         }
 
         .hero-top {
@@ -2257,6 +2356,21 @@ export default function MissionControl() {
           font-size: 12px;
           color: var(--color-text-secondary);
           line-height: 1.4;
+        }
+        .briefing-expand-btn {
+          background: none;
+          border: none;
+          color: #E5850F;
+          font-size: 11px;
+          font-family: var(--font-mono);
+          cursor: pointer;
+          padding: 2px 0;
+          opacity: 0.8;
+          transition: opacity 0.2s;
+        }
+        .briefing-expand-btn:hover {
+          opacity: 1;
+          text-decoration: underline;
         }
         .briefing-time {
           font-size: 10px;
