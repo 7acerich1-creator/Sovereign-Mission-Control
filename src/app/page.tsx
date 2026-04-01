@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import {
@@ -281,6 +282,7 @@ function useOrbCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>, coun
    ================================================== */
 
 export default function MissionControl() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useOrbCanvas(canvasRef, 350);
   const [metrics, setMetrics] = useState<MissionMetrics | null>(null);
@@ -837,7 +839,7 @@ export default function MissionControl() {
                   }} title="Regenerate last response">
                     <RotateCcw size={14} />
                   </button>
-                  <button className="hero-control-btn" onClick={() => setHeroFullscreen(true)} title="Expand fullscreen">
+                  <button className="hero-control-btn" onClick={() => router.push(`/crew/${selectedAgent?.toLowerCase()}`)} title="Open full chat page">
                     <Maximize2 size={16} />
                   </button>
                   <button className="hero-control-btn" onClick={() => { setSelectedAgent(null); setMessageInput(""); setHeroFullscreen(false); }}>
