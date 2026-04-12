@@ -9,42 +9,46 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  ArrowUpRight,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Flame
 } from 'lucide-react';
 
 type Task = {
   id: string;
   title: string;
-  description: string;
   status: string;
   priority: string;
   due_date: string | null;
-  category: string;
+  list_name: string;
+  folder_name: string;
+  url: string;
 };
 
 export default function Productivity() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastSync, setLastSync] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    fetchTasks();
+    fetchClickUpTasks();
     fetchNote();
-
-    const tasksChannel = supabase
-      .channel('tasks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchTasks())
-      .subscribe();
-
-    return () => { supabase.removeChannel(tasksChannel); };
   }, []);
 
-  async function fetchTasks() {
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('due_date', { ascending: true, nullsFirst: false });
-    if (data) setTasks(data);
+  async function fetchClickUpTasks() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/clickup/tasks');
+      const data = await res.json();
+      if (data.tasks) {
+        setTasks(data.tasks);
+        setLastSync(data.updated_at);
+      }
+    } catch (e) {
+      console.error('Failed to fetch ClickUp tasks:', e);
+    }
+    setLoading(false);
   }
 
   async function fetchNote() {
@@ -57,11 +61,6 @@ export default function Productivity() {
     await supabase.from('architect_notes').upsert({ id: 'primary', content: note }, { onConflict: 'id' });
   };
 
-  async function cycleStatus(task: Task) {
-    const next = task.status === 'To Do' ? 'In Progress' : task.status === 'In Progress' ? 'Complete' : 'To Do';
-    await supabase.from('tasks').update({ status: next, updated_at: new Date().toISOString() }).eq('id', task.id);
-  }
-
   // Revenue goal tracking
   const goalAmount = 1200000;
   const targetDate = new Date('2027-01-01');
@@ -71,8 +70,13 @@ export default function Productivity() {
 
   const activeTasks = tasks.filter(t => t.status !== 'Complete');
   const completedTasks = tasks.filter(t => t.status === 'Complete');
+  const overdueTasks = activeTasks.filter(t => {
+    if (!t.due_date) return false;
+    return new Date(t.due_date) < now;
+  });
 
   const priorityColor = (p: string) => {
+    if (p === 'Urgent') return '#ff4757';
     if (p === 'High') return 'var(--color-accent-danger, #e74c3c)';
     if (p === 'Medium') return 'var(--color-accent-primary)';
     return 'var(--color-text-muted)';
@@ -94,12 +98,25 @@ export default function Productivity() {
     return { text: `${diff}d left`, overdue: false };
   };
 
+  const folderColor = (f: string) => {
+    if (f === 'Revenue Engine') return '#43e97b';
+    if (f === 'Content Pipeline') return '#fddb92';
+    return '#4facfe';
+  };
+
   return (
     <div className="fade-in">
       <header className="page-header">
         <div className="header-main">
           <h1 className="h1-display">COMMAND CENTER</h1>
-          <p className="eyebrow text-secondary">NORTH STAR PRIORITIES :: SOVEREIGN EXECUTION</p>
+          <p className="eyebrow text-secondary">
+            CLICKUP LIVE FEED :: READ-ONLY MIRROR
+            {lastSync && (
+              <span style={{ marginLeft: 12, opacity: 0.5, fontSize: 9 }}>
+                synced {new Date(lastSync).toLocaleTimeString()}
+              </span>
+            )}
+          </p>
         </div>
       </header>
 
@@ -147,7 +164,7 @@ export default function Productivity() {
       <section className="metrics-grid">
         <div className="card stat-card">
           <div className="stat-content">
-            <span className="stat-label">ACTIVE TASKS</span>
+            <span className="stat-label">ACTIVE</span>
             <span className="stat-value">{activeTasks.length}</span>
           </div>
         </div>
@@ -160,16 +177,17 @@ export default function Productivity() {
         <div className="card stat-card">
           <div className="stat-content">
             <span className="stat-label">OVERDUE</span>
-            <span className="stat-value" style={{ color: tasks.filter(t => { const d = formatDue(t.due_date); return d && d.overdue && t.status !== 'Complete'; }).length > 0 ? 'var(--color-accent-danger, #e74c3c)' : undefined }}>
-              {tasks.filter(t => { const d = formatDue(t.due_date); return d && d.overdue && t.status !== 'Complete'; }).length}
+            <span className="stat-value" style={{ color: overdueTasks.length > 0 ? '#ff4757' : undefined }}>
+              {overdueTasks.length}
             </span>
           </div>
         </div>
         <div className="card stat-card">
           <div className="stat-content">
-            <span className="stat-label">PLAN</span>
-            <a href="https://app.clickup.com/90141025752/home" target="_blank" rel="noopener noreferrer" className="stat-value" style={{ color: '#4facfe', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-              CLICKUP <ExternalLink size={12} />
+            <span className="stat-label">SOURCE</span>
+            <a href="https://app.clickup.com/90141025752/home" target="_blank" rel="noopener noreferrer"
+              className="stat-value" style={{ color: '#7B68EE', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              CLICKUP <ExternalLink size={11} />
             </a>
           </div>
         </div>
@@ -180,51 +198,67 @@ export default function Productivity() {
         <div className="card task-section">
           <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="h2-display" style={{ margin: 0 }}>NORTH STAR TASKS</h2>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.1em' }}>CLICK STATUS TO CYCLE</span>
+            <button onClick={fetchClickUpTasks} title="Refresh from ClickUp"
+              style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '6px 10px',
+                cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6,
+                fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em' }}>
+              <RefreshCw size={11} className={loading ? 'spin' : ''} /> SYNC
+            </button>
           </div>
 
-          <div className="task-list">
-            {activeTasks.map(task => {
-              const due = formatDue(task.due_date);
-              return (
-                <div key={task.id} className="task-row">
-                  <div className="task-status" onClick={() => cycleStatus(task)} title="Click to cycle status">
-                    {statusIcon(task.status)}
-                  </div>
-                  <div className="task-info">
-                    <div className="task-title">{task.title}</div>
-                    <div className="task-meta">
-                      <span className="task-category">{task.category}</span>
-                      <span className="task-priority" style={{ color: priorityColor(task.priority) }}>{task.priority}</span>
-                      {due && (
-                        <span className={`task-due ${due.overdue ? 'overdue' : ''}`}>
-                          {due.overdue && <AlertCircle size={10} />}
-                          {due.text}
-                        </span>
-                      )}
+          {loading && tasks.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center', padding: '40px 0' }}>
+              Pulling from ClickUp...
+            </p>
+          ) : (
+            <div className="task-list">
+              {activeTasks.map(task => {
+                const due = formatDue(task.due_date);
+                return (
+                  <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="task-row">
+                    <div className="task-status-icon">
+                      {statusIcon(task.status)}
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-            {activeTasks.length === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center', padding: '20px 0' }}>
-                All tasks complete. Load the next batch.
-              </p>
-            )}
-          </div>
+                    <div className="task-info">
+                      <div className="task-title">{task.title}</div>
+                      <div className="task-meta">
+                        <span className="task-folder" style={{ color: folderColor(task.folder_name) }}>{task.folder_name}</span>
+                        <span className="task-list-name">{task.list_name}</span>
+                        <span className="task-priority" style={{ color: priorityColor(task.priority) }}>
+                          {task.priority === 'Urgent' && <Flame size={9} />}
+                          {task.priority}
+                        </span>
+                        {due && (
+                          <span className={`task-due ${due.overdue ? 'overdue' : ''}`}>
+                            {due.overdue && <AlertCircle size={9} />}
+                            {due.text}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ExternalLink size={10} style={{ color: 'var(--color-text-muted)', opacity: 0.3, flexShrink: 0 }} />
+                  </a>
+                );
+              })}
+              {activeTasks.length === 0 && !loading && (
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center', padding: '20px 0' }}>
+                  All clear. Add tasks in ClickUp to see them here.
+                </p>
+              )}
+            </div>
+          )}
 
           {completedTasks.length > 0 && (
             <>
               <div style={{ borderTop: '1px solid var(--border-color)', margin: '20px 0', opacity: 0.3 }}></div>
               <div className="task-list completed-list">
                 {completedTasks.map(task => (
-                  <div key={task.id} className="task-row completed" onClick={() => cycleStatus(task)}>
-                    <div className="task-status">{statusIcon(task.status)}</div>
+                  <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="task-row completed">
+                    <div className="task-status-icon">{statusIcon(task.status)}</div>
                     <div className="task-info">
                       <div className="task-title">{task.title}</div>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </>
@@ -327,7 +361,7 @@ export default function Productivity() {
         .task-list {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 2px;
         }
 
         .task-row {
@@ -337,17 +371,18 @@ export default function Productivity() {
           padding: 14px 12px;
           border-radius: 8px;
           transition: background 0.15s;
+          text-decoration: none;
+          color: inherit;
+          cursor: pointer;
         }
-        .task-row:hover { background: rgba(255, 255, 255, 0.03); }
-        .task-row.completed { opacity: 0.4; }
+        .task-row:hover { background: rgba(255, 255, 255, 0.04); }
+        .task-row.completed { opacity: 0.35; }
         .task-row.completed .task-title { text-decoration: line-through; }
 
-        .task-status {
-          cursor: pointer;
+        .task-status-icon {
           padding-top: 2px;
           flex-shrink: 0;
         }
-        .task-status:hover { opacity: 0.7; }
 
         .task-info { flex: 1; min-width: 0; }
         .task-title {
@@ -358,25 +393,35 @@ export default function Productivity() {
         }
         .task-meta {
           display: flex;
-          gap: 12px;
+          gap: 10px;
           align-items: center;
           font-family: var(--font-mono);
-          font-size: 10px;
-          letter-spacing: 0.05em;
+          font-size: 9.5px;
+          letter-spacing: 0.04em;
+          flex-wrap: wrap;
         }
-        .task-category {
-          color: var(--color-text-muted);
+        .task-folder {
+          font-weight: 700;
           text-transform: uppercase;
         }
-        .task-priority { font-weight: 700; }
+        .task-list-name {
+          color: var(--color-text-muted);
+          opacity: 0.7;
+        }
+        .task-priority {
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
         .task-due {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 3px;
           color: var(--color-text-muted);
         }
         .task-due.overdue {
-          color: var(--color-accent-danger, #e74c3c);
+          color: #ff4757;
           font-weight: 700;
         }
 
@@ -402,6 +447,9 @@ export default function Productivity() {
           outline: none;
         }
         .textarea:focus { border-color: var(--color-accent-secondary); }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
 
         @media (max-width: 900px) {
           .productivity-grid { grid-template-columns: 1fr; }

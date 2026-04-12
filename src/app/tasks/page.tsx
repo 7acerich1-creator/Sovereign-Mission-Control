@@ -1,1104 +1,397 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect } from 'react';
 import {
-  CheckSquare,
-  Bot,
-  User,
-  Plus,
-  X,
-  Calendar,
-  Zap,
-  Clock,
-  Activity,
   Target,
-  ArrowRight,
-  UserCircle,
-  Trash2,
-  Flag,
-  MessageCircle,
-  Send,
-  ChevronRight,
-  ArrowLeft,
-  Pencil,
-  Save
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  ExternalLink,
+  RefreshCw,
+  Flame,
+  FolderOpen
 } from 'lucide-react';
 
 type Task = {
   id: string;
   title: string;
-  description?: string;
-  status: 'To Do' | 'In Progress' | 'Complete';
-  priority: 'High' | 'Medium' | 'Low';
-  assigned_to?: string;
-  category?: string;
-  due_date?: string;
-  created_at?: string;
-};
-
-type AgentAction = {
-  id: string;
-  event_type: string;
-  title: string;
   description: string;
-  created_at: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  list_name: string;
+  folder_name: string;
+  folder_id: string;
+  url: string;
 };
 
-const CREW_AGENTS = [
-  { name: 'Sapphire', role: 'Orchestration', color: '#4facfe' },
-  { name: 'Yuki', role: 'Creative & Content', color: '#fddb92' },
-  { name: 'Anita', role: 'Outreach & Nurture', color: '#ebedee' },
-  { name: 'Alfred', role: 'Ops & Automation', color: '#C0392B' },
-  { name: 'Veritas', role: 'Research & Truth', color: '#43e97b' },
-  { name: 'Vector', role: 'Analytics & Intel', color: '#E67E22' },
-];
-
-const AGENT_COLORS: Record<string, string> = {
-  sapphire: '#4facfe',
-  yuki: '#fddb92',
-  anita: '#ebedee',
-  alfred: '#C0392B',
-  veritas: '#43e97b',
-  vector: '#E67E22',
+type FolderGroup = {
+  name: string;
+  id: string;
+  color: string;
+  tasks: Task[];
 };
 
-const MISSION_CATEGORIES = [
-  { name: 'Revenue', icon: '💰' },
-  { name: 'Content', icon: '📡' },
-  { name: 'Outreach', icon: '🎯' },
-  { name: 'Infrastructure', icon: '⚙️' },
-  { name: 'Research', icon: '🔍' },
-  { name: 'Analytics', icon: '📊' },
-];
-
-// Auto-assign agent based on task category
-const CATEGORY_AGENT_MAP: Record<string, string> = {
-  Revenue: 'Sapphire',
-  Content: 'Yuki',
-  Outreach: 'Anita',
-  Infrastructure: 'Alfred',
-  Research: 'Veritas',
-  Analytics: 'Vector',
+const FOLDER_COLORS: Record<string, string> = {
+  'Revenue Engine': '#43e97b',
+  'Content Pipeline': '#fddb92',
+  'Infrastructure': '#4facfe',
 };
 
 export default function Tasks() {
-  const [activeTab, setActiveTab] = useState<'Human' | 'AI'>('Human');
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [actions, setActions] = useState<AgentAction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'active' | 'complete'>('active');
 
-  // Task chat state
-  const [chatTask, setChatTask] = useState<Task | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [chatResponse, setChatResponse] = useState('');
-  const [chatSending, setChatSending] = useState(false);
-  const chatRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { fetchTasks(); }, []);
 
-  // Edit state
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [editAgent, setEditAgent] = useState('');
-  const [editPriority, setEditPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
-  const [editCategory, setEditCategory] = useState('Revenue');
-
-  // Form state
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newPriority, setNewPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
-  const [newAgent, setNewAgent] = useState('');
-  const [newCategory, setNewCategory] = useState('Revenue');
-  const [newDueDate, setNewDueDate] = useState('');
-
-  useEffect(() => {
-    fetchData();
-    const channel = supabase
-      .channel('tasks-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        if (activeTab === 'Human') fetchData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, () => {
-        if (activeTab === 'AI') fetchData();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
-        if (activeTab === 'AI') fetchData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'glitch_log' }, () => {
-        if (activeTab === 'AI') fetchData();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [activeTab]);
-
-  async function fetchData() {
+  async function fetchTasks() {
     setLoading(true);
-    if (activeTab === 'Human') {
-      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-      if (data) setTasks(data as Task[]);
-    } else {
-      // Aggregate crew actions from multiple sources
-      const [activityRes, chatRes, glitchRes] = await Promise.all([
-        supabase.from('activity_log').select('id, event_type, title, description, created_at, agent_name').order('created_at', { ascending: false }).limit(15),
-        supabase.from('chat_messages').select('id, agent_name, sender, content, created_at').eq('sender', 'agent').order('created_at', { ascending: false }).limit(15),
-        supabase.from('glitch_log').select('id, description, severity, created_at, resolved').order('created_at', { ascending: false }).limit(10),
-      ]);
-
-      const combined: AgentAction[] = [];
-
-      // Activity log entries
-      if (activityRes.data) {
-        for (const a of activityRes.data) {
-          combined.push({
-            id: a.id,
-            event_type: a.event_type || 'activity',
-            title: a.title || `${(a.agent_name || 'System').toUpperCase()} Action`,
-            description: a.description || '',
-            created_at: a.created_at,
-          });
-        }
+    try {
+      const res = await fetch('/api/clickup/tasks');
+      const data = await res.json();
+      if (data.tasks) {
+        setTasks(data.tasks);
+        setLastSync(data.updated_at);
       }
-
-      // Agent chat responses → crew actions
-      if (chatRes.data) {
-        for (const msg of chatRes.data) {
-          combined.push({
-            id: msg.id,
-            event_type: 'transmission',
-            title: `${(msg.agent_name || 'agent').toUpperCase()} Transmission`,
-            description: msg.content?.slice(0, 300) || '',
-            created_at: msg.created_at,
-          });
-        }
-      }
-
-      // Glitch log entries → crew actions
-      if (glitchRes.data) {
-        for (const g of glitchRes.data) {
-          combined.push({
-            id: g.id,
-            event_type: g.resolved ? 'glitch_resolved' : 'glitch_detected',
-            title: `Anomaly ${g.resolved ? 'Resolved' : 'Detected'} — ${g.severity}`,
-            description: g.description || '',
-            created_at: g.created_at,
-          });
-        }
-      }
-
-      // Sort by timestamp descending and take top 30
-      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setActions(combined.slice(0, 30));
+    } catch (e) {
+      console.error('Failed to fetch ClickUp tasks:', e);
     }
     setLoading(false);
   }
 
-  // Autonomous crew briefing — agent auto-responds when assigned to a task
-  async function triggerCrewBriefing(agentName: string, taskTitle: string, taskDesc: string | null, taskCategory: string, taskPriority: string) {
-    try {
-      const briefingPrompt = `[AUTONOMOUS TASK BRIEFING — You have just been assigned a new mission task]\n\nTask: "${taskTitle}"\nCategory: ${taskCategory}\nPriority: ${taskPriority}\n${taskDesc ? `Description: ${taskDesc}\n` : ''}\nDeliver your initial assessment: What's your read on this task? What's your approach? Flag any blockers or dependencies. Keep it tight — this is your opening move, not the full playbook.`;
+  const now = new Date();
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_name: agentName.toLowerCase(),
-          content: briefingPrompt,
-        }),
-      });
-      const data = await res.json();
+  const filtered = tasks.filter(t => {
+    if (filter === 'active') return t.status !== 'Complete';
+    if (filter === 'complete') return t.status === 'Complete';
+    return true;
+  });
 
-      // Also log to activity_log for the Crew Actions feed
-      if (data.response) {
-        await supabase.from('activity_log').insert({
-          event_type: 'task_briefing',
-          title: `${agentName} assigned to: ${taskTitle}`,
-          description: data.response.slice(0, 500),
-          agent_name: agentName.toLowerCase(),
-          status: 'success',
-        });
-      }
-    } catch (err) {
-      console.error('Crew briefing failed:', err);
-    }
+  // Group by folder
+  const folderMap = new Map<string, Task[]>();
+  for (const t of filtered) {
+    const key = t.folder_name || 'Uncategorized';
+    if (!folderMap.has(key)) folderMap.set(key, []);
+    folderMap.get(key)!.push(t);
   }
 
-  async function createTask() {
-    if (!newTitle.trim()) return;
-    // Auto-assign agent if none selected
-    const assignedAgent = newAgent || CATEGORY_AGENT_MAP[newCategory] || null;
-    await supabase.from('tasks').insert({
-      title: newTitle.trim(),
-      description: newDesc.trim() || null,
-      status: 'To Do',
-      priority: newPriority,
-      assigned_to: assignedAgent,
-      category: newCategory,
-      due_date: newDueDate || null,
-    });
+  const folders: FolderGroup[] = Array.from(folderMap.entries()).map(([name, tasks]) => ({
+    name,
+    id: tasks[0]?.folder_id || '',
+    color: FOLDER_COLORS[name] || '#888',
+    tasks: tasks.sort((a, b) => {
+      // Urgent/High first, then by due date
+      const pOrder: Record<string, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3, none: 4 };
+      const pDiff = (pOrder[a.priority] ?? 4) - (pOrder[b.priority] ?? 4);
+      if (pDiff !== 0) return pDiff;
+      if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      if (a.due_date) return -1;
+      return 1;
+    }),
+  }));
 
-    // Trigger autonomous crew briefing
-    if (assignedAgent) {
-      triggerCrewBriefing(assignedAgent, newTitle.trim(), newDesc.trim() || null, newCategory, newPriority);
-    }
-
-    setNewTitle('');
-    setNewDesc('');
-    setNewPriority('Medium');
-    setNewAgent('');
-    setNewCategory('Revenue');
-    setNewDueDate('');
-    setShowForm(false);
-  }
-
-  async function moveTask(id: string, newStatus: 'To Do' | 'In Progress' | 'Complete') {
-    const task = tasks.find(t => t.id === id);
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', id);
-
-    // Log status change to activity_log
-    if (task) {
-      await supabase.from('activity_log').insert({
-        event_type: 'task_status_change',
-        title: `${task.assigned_to || 'Unassigned'}: ${task.title}`,
-        description: `Task moved to ${newStatus}`,
-        agent_name: task.assigned_to?.toLowerCase() || null,
-        status: 'success',
-      });
-    }
-  }
-
-  async function deleteTask(id: string) {
-    await supabase.from('tasks').delete().eq('id', id);
-  }
-
-  function openEdit(task: Task) {
-    setEditTask(task);
-    setEditAgent(task.assigned_to || '');
-    setEditPriority(task.priority);
-    setEditCategory(task.category || 'Revenue');
-  }
-
-  async function saveEdit() {
-    if (!editTask) return;
-    const previousAgent = editTask.assigned_to;
-    const { error } = await supabase.from('tasks').update({
-      assigned_to: editAgent || null,
-      priority: editPriority,
-      category: editCategory,
-    }).eq('id', editTask.id);
-    if (error) {
-      console.error('Task update failed:', error);
-      return;
-    }
-
-    // Trigger crew briefing if agent changed to a new one
-    if (editAgent && editAgent !== previousAgent) {
-      triggerCrewBriefing(editAgent, editTask.title, editTask.description ?? null, editCategory, editPriority);
-    }
-
-    setEditTask(null);
-    fetchData();
-  }
-
-  async function sendTaskChat() {
-    if (!chatTask || !chatInput.trim() || chatSending) return;
-    const agent = chatTask.assigned_to || 'sapphire';
-    setChatSending(true);
-    setChatResponse('');
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_name: agent.toLowerCase(),
-          content: `[TASK CONTEXT: "${chatTask.title}" — ${chatTask.category || 'General'} — ${chatTask.priority} priority]\n\n${chatInput.trim()}`
-        }),
-      });
-      const data = await res.json();
-      setChatResponse(data.response || 'Processing...');
-    } catch {
-      setChatResponse('Transmission interrupted. Try again.');
-    }
-    setChatInput('');
-    setChatSending(false);
-  }
-
-  const columns: { key: Task['status']; label: string; next?: Task['status']; accent: string }[] = [
-    { key: 'To Do', label: 'MISSION QUEUE', next: 'In Progress', accent: 'var(--color-accent-secondary)' },
-    { key: 'In Progress', label: 'EXECUTING', next: 'Complete', accent: 'var(--color-accent-primary)' },
-    { key: 'Complete', label: 'MISSION COMPLETE', accent: 'var(--color-accent-success)' },
-  ];
-
-  // Stats
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'Complete').length;
-  const inProgress = tasks.filter(t => t.status === 'In Progress').length;
-  const highPriorityActive = tasks.filter(t => t.priority === 'High' && t.status !== 'Complete').length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  const renderKanban = () => (
-    <div className="kanban-board">
-      {columns.map(col => {
-        const colTasks = tasks.filter(t => t.status === col.key);
-        return (
-          <div key={col.key} className="kanban-column">
-            <div className="column-header" style={{ borderBottomColor: col.accent }}>
-              <div className="column-title-row">
-                <div className="column-dot" style={{ background: col.accent, boxShadow: `0 0 8px ${col.accent}` }} />
-                <span className="column-title">{col.label}</span>
-              </div>
-              <span className="column-count" style={{ background: `${col.accent}15`, color: col.accent }}>{colTasks.length}</span>
-            </div>
-            <div className="column-content">
-              {colTasks.map(task => {
-                const agentColor = task.assigned_to ? AGENT_COLORS[task.assigned_to.toLowerCase()] || '#7C5CFC' : '#7C5CFC';
-                const agentInfo = CREW_AGENTS.find(a => a.name === task.assigned_to);
-                return (
-                  <div key={task.id} className="task-card fade-in">
-                    <div className="task-priority-strip" style={{
-                      background: task.priority === 'High' ? 'var(--color-accent-danger)' :
-                        task.priority === 'Medium' ? 'var(--color-accent-primary)' : 'var(--color-accent-success)'
-                    }} />
-                    <div className="task-body">
-                      <div className="task-top-row">
-                        <div className="task-priority-badge" style={{
-                          color: task.priority === 'High' ? 'var(--color-accent-danger)' :
-                            task.priority === 'Medium' ? 'var(--color-accent-primary)' : 'var(--color-accent-success)',
-                          background: task.priority === 'High' ? 'rgba(217, 85, 85, 0.1)' :
-                            task.priority === 'Medium' ? 'rgba(201, 168, 76, 0.1)' : 'rgba(46, 204, 143, 0.1)',
-                        }}>
-                          <Flag size={9} />
-                          {task.priority}
-                        </div>
-                        {task.category && (
-                          <span className="task-category">
-                            {MISSION_CATEGORIES.find(c => c.name === task.category)?.icon} {task.category}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="task-title">{task.title}</h3>
-                      {task.description && <p className="task-desc">{task.description}</p>}
-
-                      {/* Agent Assignment Block */}
-                      {task.assigned_to ? (
-                        <div className="task-agent-block" style={{ borderColor: `${agentColor}30` }}>
-                          <div className="task-agent-avatar" style={{ background: `${agentColor}20`, color: agentColor }}>
-                            <UserCircle size={14} />
-                          </div>
-                          <div className="task-agent-info">
-                            <span className="task-agent-name" style={{ color: agentColor }}>{task.assigned_to}</span>
-                            <span className="task-agent-role">{agentInfo?.role || ''}</span>
-                          </div>
-                          <button
-                            className="task-chat-btn"
-                            style={{ color: agentColor, borderColor: `${agentColor}30` }}
-                            onClick={() => { setChatTask(task); setChatResponse(''); }}
-                            title={`Message ${task.assigned_to}`}
-                          >
-                            <MessageCircle size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button className="task-assign-prompt" onClick={() => openEdit(task)}>
-                          <UserCircle size={13} />
-                          <span>ASSIGN CREW MEMBER</span>
-                        </button>
-                      )}
-
-                      <div className="task-footer">
-                        <div className="task-meta-left">
-                          {task.due_date && (
-                            <span className="task-date">
-                              <Calendar size={10} />
-                              {new Date(task.due_date).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="task-actions">
-                          <button className="task-action-btn edit" onClick={() => openEdit(task)} title="Edit Task">
-                            <Pencil size={12} />
-                          </button>
-                          {col.next && (
-                            <button className="task-action-btn move" onClick={() => moveTask(task.id, col.next!)} title={`Move to ${col.next}`}>
-                              <ArrowRight size={13} />
-                            </button>
-                          )}
-                          <button className="task-action-btn delete" onClick={() => deleteTask(task.id)} title="Delete">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {col.key === 'To Do' && (
-                <button className="add-task-ghost" onClick={() => setShowForm(true)}>
-                  <Plus size={16} />
-                  <span>Add Mission Task</span>
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const ACTION_TYPE_META: Record<string, { icon: typeof Activity; color: string; label: string }> = {
-    task_briefing: { icon: Target, color: '#7C5CFC', label: 'BRIEFING' },
-    task_status_change: { icon: ArrowRight, color: '#1D9E75', label: 'STATUS' },
-    transmission: { icon: MessageCircle, color: '#4facfe', label: 'TRANSMISSION' },
-    glitch_detected: { icon: Zap, color: '#D95555', label: 'ANOMALY' },
-    glitch_resolved: { icon: CheckSquare, color: '#1D9E75', label: 'RESOLVED' },
-    synthesis: { icon: Activity, color: '#C9A84C', label: 'SYNTHESIS' },
-    activity: { icon: Activity, color: '#C9A84C', label: 'ACTIVITY' },
+  const statusIcon = (s: string) => {
+    if (s === 'Complete') return <CheckCircle2 size={13} style={{ color: 'var(--color-accent-success)' }} />;
+    if (s === 'In Progress') return <Clock size={13} style={{ color: '#4facfe' }} />;
+    return <Target size={13} style={{ color: 'var(--color-text-muted)' }} />;
   };
 
-  const renderAgentActions = () => (
-    <div className="actions-list">
-      {actions.map((action, idx) => {
-        const meta = ACTION_TYPE_META[action.event_type] || ACTION_TYPE_META.activity;
-        const IconComponent = meta.icon;
-        return (
-          <div key={`${action.id}-${idx}`} className={`card action-card fade-in stagger-${(idx % 3) + 1}`}>
-            <div className="action-icon-wrap" style={{ background: `${meta.color}15`, color: meta.color, borderColor: `${meta.color}30` }}>
-              <IconComponent size={18} />
-            </div>
-            <div className="action-body">
-              <div className="action-header">
-                <span className="action-type" style={{ color: meta.color }}>{meta.label}</span>
-                <span className="action-time">{new Date(action.created_at).toLocaleString()}</span>
-              </div>
-              {action.title && <p className="action-title">{action.title}</p>}
-              <p className="action-description">{action.description}</p>
-            </div>
-          </div>
-        );
-      })}
-      {actions.length === 0 && (
-        <div className="empty-state">
-          <Bot size={48} className="empty-icon" />
-          <p>NO CREW ACTIONS LOGGED YET</p>
-          <p style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>Create a task and assign a crew member — they&apos;ll brief you automatically.</p>
-        </div>
-      )}
-    </div>
-  );
-
-  // Task chat panel
-  const renderTaskChat = () => {
-    if (!chatTask) return null;
-    const agent = chatTask.assigned_to || 'Sapphire';
-    const agentColor = AGENT_COLORS[agent.toLowerCase()] || '#7C5CFC';
-    return (
-      <div className="task-chat-overlay fade-in">
-        <div className="task-chat-panel">
-          <div className="task-chat-header" style={{ borderBottomColor: `${agentColor}30` }}>
-            <button className="task-chat-back" onClick={() => setChatTask(null)}><ArrowLeft size={16} /></button>
-            <div className="task-chat-agent-info">
-              <UserCircle size={18} style={{ color: agentColor }} />
-              <div>
-                <span className="task-chat-agent-name" style={{ color: agentColor }}>{agent}</span>
-                <span className="task-chat-task-title">{chatTask.title}</span>
-              </div>
-            </div>
-          </div>
-          <div className="task-chat-body" ref={chatRef}>
-            <div className="task-chat-context">
-              <span className="context-label">TASK CONTEXT</span>
-              <p>{chatTask.title}</p>
-              {chatTask.description && <p className="context-desc">{chatTask.description}</p>}
-              <div className="context-meta">
-                {chatTask.category && <span>{MISSION_CATEGORIES.find(c => c.name === chatTask.category)?.icon} {chatTask.category}</span>}
-                <span>{chatTask.priority} Priority</span>
-              </div>
-            </div>
-            {chatResponse && (
-              <div className="task-chat-response" style={{ borderLeftColor: agentColor }}>
-                <span className="response-agent" style={{ color: agentColor }}>{agent.toUpperCase()}</span>
-                <p>{chatResponse}</p>
-              </div>
-            )}
-          </div>
-          <div className="task-chat-input-bar">
-            <input
-              type="text"
-              placeholder={`Ask ${agent} about this task...`}
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendTaskChat()}
-              className="task-chat-input"
-              autoFocus
-            />
-            <button className="task-chat-send" style={{ background: `${agentColor}20`, borderColor: `${agentColor}30`, color: agentColor }} onClick={sendTaskChat} disabled={chatSending || !chatInput.trim()}>
-              <Send size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  const priorityColor = (p: string) => {
+    if (p === 'Urgent') return '#ff4757';
+    if (p === 'High') return 'var(--color-accent-danger, #e74c3c)';
+    if (p === 'Medium') return 'var(--color-accent-primary)';
+    return 'var(--color-text-muted)';
   };
+
+  const formatDue = (d: string | null) => {
+    if (!d) return null;
+    const due = new Date(d);
+    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return { text: `${Math.abs(diff)}d overdue`, overdue: true };
+    if (diff === 0) return { text: 'Today', overdue: false };
+    if (diff === 1) return { text: 'Tomorrow', overdue: false };
+    return { text: `${diff}d`, overdue: false };
+  };
+
+  const totalActive = tasks.filter(t => t.status !== 'Complete').length;
+  const totalComplete = tasks.filter(t => t.status === 'Complete').length;
+  const totalOverdue = tasks.filter(t => {
+    if (t.status === 'Complete' || !t.due_date) return false;
+    return new Date(t.due_date) < now;
+  }).length;
 
   return (
     <div className="fade-in">
       <header className="page-header">
         <div className="header-main">
           <h1 className="h1-display">TASKS & PROJECTS</h1>
-          <p className="eyebrow text-secondary">MISSION EXECUTION ARCHITECTURE :: $1.2M OBJECTIVE</p>
-        </div>
-        <div className="tab-switcher">
-          <button className={`tab-btn ${activeTab === 'Human' ? 'active' : ''}`} onClick={() => setActiveTab('Human')}>
-            <Target size={16} />
-            <span>MISSION TASKS</span>
-          </button>
-          <button className={`tab-btn ${activeTab === 'AI' ? 'active' : ''}`} onClick={() => setActiveTab('AI')}>
-            <Bot size={16} />
-            <span>CREW ACTIONS</span>
-          </button>
+          <p className="eyebrow text-secondary">
+            CLICKUP LIVE MIRROR :: ALL EDITING IN CLICKUP
+            {lastSync && (
+              <span style={{ marginLeft: 12, opacity: 0.5, fontSize: 9 }}>
+                synced {new Date(lastSync).toLocaleTimeString()}
+              </span>
+            )}
+          </p>
         </div>
       </header>
 
-      {activeTab === 'Human' && (
-        <>
-          {/* STAT CARDS */}
-          <section className="metrics-grid">
-            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-secondary)' }}>
-              <div className="stat-content">
-                <span className="stat-label">TOTAL MISSIONS</span>
-                <span className="stat-value">{totalTasks}</span>
-              </div>
-            </div>
-            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-primary)' }}>
-              <div className="stat-content">
-                <span className="stat-label">IN PROGRESS</span>
-                <span className="stat-value" style={{ color: 'var(--color-accent-primary)' }}>{inProgress}</span>
-              </div>
-            </div>
-            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-danger)' }}>
-              <div className="stat-content">
-                <span className="stat-label">HIGH PRIORITY</span>
-                <span className="stat-value" style={{ color: 'var(--color-accent-danger)' }}>{highPriorityActive}</span>
-              </div>
-            </div>
-            <div className="card stat-card" style={{ borderTop: '3px solid var(--color-accent-success)' }}>
-              <div className="stat-content">
-                <span className="stat-label">COMPLETION</span>
-                <span className="stat-value" style={{ color: 'var(--color-accent-success)' }}>{completionRate}%</span>
-              </div>
-            </div>
-          </section>
-
-          {/* CREATE BUTTON */}
-          <div className="actions-bar">
-            <button className="create-btn" onClick={() => setShowForm(v => !v)}>
-              {showForm ? <X size={14} /> : <Plus size={14} />}
-              <span>{showForm ? 'CANCEL' : 'NEW MISSION TASK'}</span>
+      {/* TOP BAR */}
+      <div className="top-bar">
+        <div className="filter-tabs">
+          {(['active', 'complete', 'all'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`filter-btn ${filter === f ? 'active' : ''}`}>
+              {f === 'active' ? `Active (${totalActive})` : f === 'complete' ? `Complete (${totalComplete})` : `All (${tasks.length})`}
             </button>
-          </div>
-
-          {/* NEW TASK FORM */}
-          {showForm && (
-            <div className="card task-form fade-in" style={{ borderLeft: '3px solid var(--color-accent-secondary)' }}>
-              <h3 className="form-title">
-                <Target size={14} style={{ color: 'var(--color-accent-secondary)' }} />
-                CREATE MISSION TASK
-              </h3>
-              <div className="form-grid">
-                <div className="form-field full-width">
-                  <label>OBJECTIVE</label>
-                  <input
-                    type="text"
-                    placeholder="What needs to be executed..."
-                    value={newTitle}
-                    onChange={e => setNewTitle(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && createTask()}
-                    className="form-input"
-                    autoFocus
-                  />
-                </div>
-                <div className="form-field full-width">
-                  <label>DETAILS (OPTIONAL)</label>
-                  <textarea
-                    placeholder="Context, deliverables, success criteria..."
-                    value={newDesc}
-                    onChange={e => setNewDesc(e.target.value)}
-                    className="form-textarea"
-                    rows={2}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>PRIORITY</label>
-                  <div className="priority-picker">
-                    {(['High', 'Medium', 'Low'] as const).map(p => (
-                      <button
-                        key={p}
-                        className={`prio-btn ${p.toLowerCase()} ${newPriority === p ? 'active' : ''}`}
-                        onClick={() => setNewPriority(p)}
-                      >
-                        <Flag size={11} />
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-field">
-                  <label>MISSION CATEGORY</label>
-                  <select className="form-select" value={newCategory} onChange={e => {
-                    const cat = e.target.value;
-                    setNewCategory(cat);
-                    if (!newAgent && CATEGORY_AGENT_MAP[cat]) setNewAgent(CATEGORY_AGENT_MAP[cat]);
-                  }}>
-                    {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label>ASSIGN CREW MEMBER</label>
-                  <select className="form-select" value={newAgent} onChange={e => setNewAgent(e.target.value)}>
-                    <option value="">Auto-assign ({CATEGORY_AGENT_MAP[newCategory] || 'Sapphire'})</option>
-                    {CREW_AGENTS.map(a => <option key={a.name} value={a.name}>{a.name} — {a.role}</option>)}
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label>DUE DATE</label>
-                  <input type="date" className="form-input" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
-                </div>
-              </div>
-              <button className="submit-btn" onClick={createTask} disabled={!newTitle.trim()}>
-                <Zap size={14} />
-                CREATE MISSION TASK
-              </button>
-            </div>
+          ))}
+        </div>
+        <div className="top-actions">
+          {totalOverdue > 0 && (
+            <span className="overdue-badge">
+              <AlertCircle size={11} /> {totalOverdue} overdue
+            </span>
           )}
-        </>
-      )}
+          <button onClick={fetchTasks} className="sync-btn" title="Refresh from ClickUp">
+            <RefreshCw size={11} className={loading ? 'spin' : ''} /> SYNC
+          </button>
+          <a href="https://app.clickup.com/90141025752/home" target="_blank" rel="noopener noreferrer" className="clickup-btn">
+            Open ClickUp <ExternalLink size={10} />
+          </a>
+        </div>
+      </div>
 
-      {activeTab === 'Human' ? renderKanban() : renderAgentActions()}
-      {renderTaskChat()}
+      {/* BOARD VIEW */}
+      {loading && tasks.length === 0 ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Pulling tasks from ClickUp...</p>
+        </div>
+      ) : folders.length === 0 ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+            {filter === 'complete' ? 'No completed tasks yet.' : 'No active tasks. Add some in ClickUp.'}
+          </p>
+        </div>
+      ) : (
+        <div className="board-grid">
+          {folders.map(folder => (
+            <div key={folder.name} className="card folder-column">
+              <div className="folder-header">
+                <FolderOpen size={14} style={{ color: folder.color }} />
+                <span className="folder-name" style={{ color: folder.color }}>{folder.name}</span>
+                <span className="folder-count">{folder.tasks.length}</span>
+              </div>
 
-      {/* EDIT TASK MODAL */}
-      {editTask && (
-        <div className="edit-overlay fade-in" onClick={() => setEditTask(null)}>
-          <div className="edit-modal" onClick={e => e.stopPropagation()}>
-            <div className="edit-modal-header">
-              <Pencil size={14} style={{ color: 'var(--color-accent-secondary)' }} />
-              <span>EDIT MISSION TASK</span>
-              <button className="edit-close" onClick={() => setEditTask(null)}><X size={14} /></button>
-            </div>
-            <div className="edit-task-title">{editTask.title}</div>
-            <div className="edit-form-fields">
-              <div className="edit-field">
-                <label>ASSIGN CREW MEMBER</label>
-                <select className="form-select" value={editAgent} onChange={e => setEditAgent(e.target.value)}>
-                  <option value="">Unassigned</option>
-                  {CREW_AGENTS.map(a => <option key={a.name} value={a.name}>{a.name} — {a.role}</option>)}
-                </select>
-              </div>
-              <div className="edit-field">
-                <label>PRIORITY</label>
-                <div className="priority-picker">
-                  {(['High', 'Medium', 'Low'] as const).map(p => (
-                    <button key={p} className={`prio-btn ${p.toLowerCase()} ${editPriority === p ? 'active' : ''}`} onClick={() => setEditPriority(p)}>
-                      <Flag size={11} />{p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="edit-field">
-                <label>MISSION CATEGORY</label>
-                <select className="form-select" value={editCategory} onChange={e => {
-                  const cat = e.target.value;
-                  setEditCategory(cat);
-                  // Auto-suggest agent when category changes and no agent assigned
-                  if (!editAgent && CATEGORY_AGENT_MAP[cat]) {
-                    setEditAgent(CATEGORY_AGENT_MAP[cat]);
-                  }
-                }}>
-                  {MISSION_CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.icon} {c.name}</option>)}
-                </select>
+              <div className="folder-tasks">
+                {folder.tasks.map(task => {
+                  const due = formatDue(task.due_date);
+                  return (
+                    <a key={task.id} href={task.url} target="_blank" rel="noopener noreferrer" className="task-card">
+                      <div className="tc-top">
+                        {statusIcon(task.status)}
+                        <span className="tc-title">{task.title}</span>
+                      </div>
+                      <div className="tc-bottom">
+                        <span className="tc-list">{task.list_name}</span>
+                        <span className="tc-priority" style={{ color: priorityColor(task.priority) }}>
+                          {task.priority === 'Urgent' && <Flame size={9} />}
+                          {task.priority !== 'none' && task.priority}
+                        </span>
+                        {due && (
+                          <span className={`tc-due ${due.overdue ? 'overdue' : ''}`}>
+                            {due.overdue && <AlertCircle size={9} />}
+                            {due.text}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             </div>
-            <button className="submit-btn" onClick={saveEdit}>
-              <Save size={14} />
-              SAVE CHANGES
-            </button>
-          </div>
+          ))}
         </div>
       )}
 
-      <style jsx global>{`
-        .tab-switcher {
+      <style jsx>{`
+        .top-bar {
           display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .filter-tabs {
+          display: flex;
+          gap: 4px;
           background: rgba(255, 255, 255, 0.03);
-          padding: 4px;
-          border-radius: 12px;
+          border-radius: 8px;
+          padding: 3px;
           border: 1px solid var(--border-color);
         }
-        .tab-btn {
+        .filter-btn {
+          background: none;
+          border: none;
+          padding: 7px 14px;
+          border-radius: 6px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          color: var(--color-text-muted);
+          cursor: pointer;
+          transition: all 0.15s;
+          text-transform: uppercase;
+        }
+        .filter-btn.active {
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--color-text-primary);
+        }
+        .filter-btn:hover { color: var(--color-text-primary); }
+
+        .top-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .overdue-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          color: #ff4757;
+          padding: 5px 10px;
+          background: rgba(255, 71, 87, 0.1);
+          border-radius: 6px;
+        }
+        .sync-btn, .clickup-btn {
+          background: none;
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          padding: 6px 12px;
+          cursor: pointer;
+          color: var(--color-text-muted);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-decoration: none;
+          transition: all 0.15s;
+        }
+        .sync-btn:hover, .clickup-btn:hover {
+          border-color: var(--color-text-muted);
+          color: var(--color-text-primary);
+        }
+        .clickup-btn { color: #7B68EE; border-color: rgba(123, 104, 238, 0.3); }
+        .clickup-btn:hover { border-color: #7B68EE; }
+
+        .board-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          gap: 20px;
+        }
+        .folder-column { padding: 20px; }
+        .folder-header {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 20px;
-          border-radius: 8px;
-          border: none;
-          background: transparent;
-          color: var(--color-text-muted);
-          font-family: var(--font-mono);
-          font-size: 11px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: var(--transition-fast);
-          letter-spacing: 0.06em;
-        }
-        .tab-btn.active {
-          background: var(--color-bg-surface);
-          color: var(--color-accent-primary);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        }
-
-        .actions-bar { display: flex; justify-content: flex-end; margin-bottom: 24px; }
-        .create-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 12px 24px; border-radius: 10px;
-          border: 1px solid rgba(124, 92, 252, 0.3);
-          background: rgba(124, 92, 252, 0.08);
-          color: var(--color-accent-secondary);
-          font-family: var(--font-mono); font-size: 11px; font-weight: 700;
-          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
-        }
-        .create-btn:hover { background: rgba(124, 92, 252, 0.15); border-color: rgba(124, 92, 252, 0.5); }
-
-        /* FORM */
-        .task-form { padding: 28px; margin-bottom: 28px; }
-        .form-title {
-          display: flex; align-items: center; gap: 8px;
-          font-family: var(--font-mono); font-size: 12px;
-          letter-spacing: 0.12em; color: var(--color-accent-secondary); margin-bottom: 24px;
-        }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .full-width { grid-column: 1 / -1; }
-        .form-field label {
-          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-          letter-spacing: 0.12em; color: var(--color-text-muted); margin-bottom: 8px;
-        }
-        .form-input, .form-textarea, .form-select {
-          width: 100%; background: var(--color-bg-deepest); border: 1px solid var(--border-color);
-          border-radius: 8px; padding: 10px 14px; color: var(--color-text-primary);
-          font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s;
-        }
-        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--color-accent-secondary); }
-        .form-textarea { resize: vertical; }
-        .form-select { cursor: pointer; }
-        .priority-picker { display: flex; gap: 8px; }
-        .prio-btn {
-          display: flex; align-items: center; gap: 5px; padding: 8px 14px;
-          border-radius: 8px; border: 1px solid var(--border-color);
-          background: transparent; color: var(--color-text-muted);
-          font-size: 11px; font-weight: 600; cursor: pointer; transition: var(--transition-fast);
-        }
-        .prio-btn.high.active { background: rgba(217, 85, 85, 0.12); color: var(--color-accent-danger); border-color: var(--color-accent-danger); }
-        .prio-btn.medium.active { background: rgba(201, 168, 76, 0.12); color: var(--color-accent-primary); border-color: var(--color-accent-primary); }
-        .prio-btn.low.active { background: rgba(46, 204, 143, 0.1); color: var(--color-accent-success); border-color: var(--color-accent-success); }
-        .submit-btn {
-          display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px;
-          border: none; background: var(--color-accent-secondary); color: white;
-          font-family: var(--font-mono); font-size: 12px; font-weight: 700;
-          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
-        }
-        .submit-btn:hover:not(:disabled) { filter: brightness(1.15); }
-        .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        /* KANBAN */
-        .kanban-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .kanban-column { display: flex; flex-direction: column; gap: 12px; }
-        .column-header {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 14px 16px; background: var(--color-bg-surface); border-radius: 12px;
-          border: 1px solid var(--border-color); border-bottom: 2px solid;
-        }
-        .column-title-row { display: flex; align-items: center; gap: 10px; }
-        .column-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .column-title {
-          font-size: 11px; font-weight: 800; color: var(--color-text-primary);
-          letter-spacing: 0.12em; font-family: var(--font-mono);
-        }
-        .column-count {
-          font-size: 11px; font-family: var(--font-mono); font-weight: 700;
-          padding: 3px 10px; border-radius: 10px;
-        }
-        .column-content { display: flex; flex-direction: column; gap: 10px; }
-
-        /* TASK CARDS */
-        .task-card {
-          display: flex; border-radius: 12px; overflow: hidden;
-          background: var(--color-bg-surface); border: 1px solid var(--border-color);
-          transition: var(--transition-normal);
-        }
-        .task-card:hover { border-color: rgba(124, 92, 252, 0.25); transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3); }
-        .task-priority-strip { width: 4px; flex-shrink: 0; }
-        .task-body { flex: 1; padding: 18px; }
-
-        .task-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .task-priority-badge {
-          display: flex; align-items: center; gap: 5px;
-          font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-          letter-spacing: 0.08em; padding: 4px 10px; border-radius: 6px; text-transform: uppercase;
-        }
-        .task-category {
-          font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted);
-          background: rgba(255, 255, 255, 0.04); padding: 3px 8px; border-radius: 4px;
-        }
-        .task-title { font-size: 14px; font-weight: 700; line-height: 1.4; margin-bottom: 6px; color: var(--color-text-primary); }
-        .task-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 10px; }
-
-        /* Agent Assignment Block */
-        .task-agent-block {
-          display: flex; align-items: center; gap: 10px;
-          padding: 10px 12px; border-radius: 8px; border: 1px solid;
-          background: rgba(255, 255, 255, 0.02); margin-bottom: 12px;
-        }
-        .task-agent-avatar {
-          width: 28px; height: 28px; border-radius: 6px;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .task-agent-info { flex: 1; }
-        .task-agent-name { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
-        .task-agent-role { display: block; font-size: 10px; color: var(--color-text-muted); }
-        .task-chat-btn {
-          display: flex; align-items: center; padding: 6px 8px;
-          border-radius: 6px; border: 1px solid; background: transparent;
-          cursor: pointer; transition: var(--transition-fast);
-        }
-        .task-chat-btn:hover { background: rgba(255, 255, 255, 0.06); }
-
-        .task-footer { display: flex; justify-content: space-between; align-items: center; }
-        .task-meta-left { display: flex; align-items: center; gap: 10px; }
-        .task-date {
-          display: flex; align-items: center; gap: 4px;
-          font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted);
-        }
-        .task-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
-        .task-card:hover .task-actions { opacity: 1; }
-        .task-action-btn {
-          background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 5px; padding: 5px 7px; cursor: pointer; display: flex; align-items: center;
-          transition: var(--transition-fast);
-        }
-        .task-action-btn.move { color: var(--color-accent-success); }
-        .task-action-btn.move:hover { background: rgba(46, 204, 143, 0.1); }
-        .task-action-btn.delete { color: var(--color-text-muted); }
-        .task-action-btn.delete:hover { color: var(--color-accent-danger); background: rgba(217, 85, 85, 0.1); }
-
-        .add-task-ghost {
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          padding: 14px; border: 1px dashed var(--border-color); border-radius: 12px;
-          color: var(--color-text-muted); font-size: 12px; cursor: pointer;
-          transition: var(--transition-fast); font-family: var(--font-mono);
-        }
-        .add-task-ghost:hover { border-color: var(--color-accent-secondary); color: var(--color-accent-secondary); background: rgba(124, 92, 252, 0.05); }
-
-        /* TASK CHAT OVERLAY */
-        .task-chat-overlay {
-          position: fixed; top: 0; right: 0; bottom: 0; width: 420px;
-          height: 100vh; max-height: 100vh;
-          z-index: 9999; background: rgba(5, 5, 8, 0.97); backdrop-filter: blur(20px);
-          border-left: 1px solid var(--border-color);
-          display: flex; flex-direction: column; overflow: hidden;
-        }
-        .task-chat-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
-        .task-chat-header {
-          display: flex; align-items: center; gap: 14px;
-          padding: 20px; border-bottom: 1px solid;
-        }
-        .task-chat-back {
-          background: none; border: none; color: var(--color-text-muted);
-          cursor: pointer; display: flex; align-items: center; padding: 4px;
-        }
-        .task-chat-back:hover { color: var(--color-text-primary); }
-        .task-chat-agent-info { display: flex; align-items: center; gap: 10px; }
-        .task-chat-agent-name {
-          display: block; font-family: var(--font-mono); font-size: 12px;
-          font-weight: 700; letter-spacing: 0.08em;
-        }
-        .task-chat-task-title {
-          display: block; font-size: 11px; color: var(--color-text-muted);
-          max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .task-chat-body { flex: 1; overflow-y: auto; padding: 20px; min-height: 0; }
-        .task-chat-context {
-          padding: 16px; border-radius: 10px; background: rgba(124, 92, 252, 0.06);
-          border: 1px solid rgba(124, 92, 252, 0.12); margin-bottom: 20px;
-        }
-        .context-label {
-          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-          letter-spacing: 0.12em; color: var(--color-accent-secondary); margin-bottom: 8px;
-        }
-        .task-chat-context p { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
-        .context-desc { font-size: 12px !important; font-weight: 400 !important; color: var(--color-text-secondary) !important; margin-top: 6px; }
-        .context-meta {
-          display: flex; gap: 12px; margin-top: 10px;
-          font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted);
-        }
-        .task-chat-response {
-          padding: 16px; border-radius: 10px; background: rgba(255, 255, 255, 0.03);
-          border-left: 3px solid; margin-bottom: 12px;
-        }
-        .response-agent {
-          display: block; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-          letter-spacing: 0.1em; margin-bottom: 8px;
-        }
-        .task-chat-response p { font-size: 13px; line-height: 1.7; color: var(--color-text-secondary); }
-        .task-chat-input-bar {
-          display: flex; gap: 8px; padding: 16px 20px;
-          border-top: 1px solid var(--border-color); background: rgba(5, 5, 8, 0.8);
-        }
-        .task-chat-input {
-          flex: 1; background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;
-          color: var(--color-text-primary); padding: 10px 14px; font-size: 13px;
-          font-family: inherit; outline: none; transition: border-color 0.2s;
-        }
-        .task-chat-input:focus { border-color: rgba(124, 92, 252, 0.4); }
-        .task-chat-input::placeholder { color: rgba(232, 228, 216, 0.2); }
-        .task-chat-send {
-          border: 1px solid; border-radius: 8px; padding: 8px 14px;
-          cursor: pointer; display: flex; align-items: center; transition: var(--transition-fast);
-        }
-        .task-chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        /* ASSIGN PROMPT */
-        .task-assign-prompt {
-          display: flex; align-items: center; gap: 6px; width: 100%;
-          padding: 8px 10px; border-radius: 6px; border: 1px dashed rgba(124, 92, 252, 0.3);
-          background: rgba(124, 92, 252, 0.04); color: var(--color-accent-secondary);
-          font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-          letter-spacing: 0.08em; cursor: pointer; transition: var(--transition-fast);
-          margin-top: 6px;
-        }
-        .task-assign-prompt:hover { background: rgba(124, 92, 252, 0.12); border-color: rgba(124, 92, 252, 0.5); }
-
-        /* EDIT BUTTON */
-        .task-action-btn.edit { color: var(--color-accent-secondary); }
-        .task-action-btn.edit:hover { background: rgba(124, 92, 252, 0.15); }
-
-        /* EDIT MODAL */
-        .edit-overlay {
-          position: fixed; inset: 0; z-index: 10000;
-          background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
-          display: flex; align-items: center; justify-content: center;
-        }
-        .edit-modal {
-          background: var(--color-bg-surface); border: 1px solid var(--border-color);
-          border-radius: 16px; padding: 28px; width: 420px; max-width: 90vw;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-        }
-        .edit-modal-header {
-          display: flex; align-items: center; gap: 8px;
-          font-family: var(--font-mono); font-size: 12px; font-weight: 700;
-          letter-spacing: 0.08em; color: var(--color-text-primary); margin-bottom: 16px;
-        }
-        .edit-close {
-          margin-left: auto; background: none; border: none; color: var(--color-text-muted);
-          cursor: pointer; padding: 4px;
-        }
-        .edit-close:hover { color: var(--color-text-primary); }
-        .edit-task-title {
-          font-size: 15px; font-weight: 700; color: var(--color-text-primary);
-          margin-bottom: 20px; padding-bottom: 16px;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
           border-bottom: 1px solid var(--border-color);
         }
-        .edit-form-fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
-        .edit-field label {
-          display: block; font-family: var(--font-mono); font-size: 10px;
-          font-weight: 700; letter-spacing: 0.08em; color: var(--color-text-muted);
-          margin-bottom: 6px;
+        .folder-name {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .folder-count {
+          margin-left: auto;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--color-text-muted);
+          background: rgba(255, 255, 255, 0.05);
+          padding: 2px 8px;
+          border-radius: 10px;
         }
 
-        /* AGENT ACTIONS */
-        .actions-list { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
-        .action-card { display: flex; gap: 20px; padding: 20px; }
-        .action-icon-wrap {
-          width: 40px; height: 40px; background: rgba(124, 92, 252, 0.1);
-          color: var(--color-accent-secondary); display: flex; align-items: center;
-          justify-content: center; border-radius: 10px; border: 1px solid rgba(124, 92, 252, 0.2); flex-shrink: 0;
+        .folder-tasks {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
-        .action-body { flex: 1; }
-        .action-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .action-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-        .action-time { font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted); }
-        .action-title { font-weight: 600; margin-bottom: 4px; color: var(--color-text-primary); font-size: 14px; }
-        .action-description { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
-
-        .empty-state {
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          padding: 100px 0; color: var(--color-text-muted);
-          border: 1px dashed var(--border-color); border-radius: 16px;
+        .task-card {
+          display: block;
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: rgba(255, 255, 255, 0.015);
+          text-decoration: none;
+          color: inherit;
+          transition: all 0.15s;
+          cursor: pointer;
         }
-        .empty-icon { opacity: 0.2; margin-bottom: 24px; }
-
-        /* ====== LIGHT MODE OVERRIDES ====== */
-        [data-theme="light"] .task-chat-overlay {
-          background: rgba(255, 255, 255, 0.97) !important;
-          border-left-color: rgba(0, 0, 0, 0.08) !important;
+        .task-card:hover {
+          background: rgba(255, 255, 255, 0.04);
+          border-color: rgba(255, 255, 255, 0.12);
         }
-        [data-theme="light"] .task-chat-header {
-          border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+        .tc-top {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          margin-bottom: 8px;
         }
-        [data-theme="light"] .task-chat-context {
-          background: rgba(124, 92, 252, 0.04) !important;
-          border-color: rgba(124, 92, 252, 0.1) !important;
+        .tc-title {
+          font-size: 12.5px;
+          font-weight: 600;
+          color: var(--color-text-primary);
+          line-height: 1.4;
         }
-        [data-theme="light"] .task-chat-response {
-          background: rgba(0, 0, 0, 0.02) !important;
+        .tc-bottom {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          letter-spacing: 0.04em;
+          padding-left: 23px;
         }
-        [data-theme="light"] .task-chat-input-bar {
-          background: rgba(248, 247, 244, 0.95) !important;
-          border-top-color: rgba(0, 0, 0, 0.06) !important;
+        .tc-list {
+          color: var(--color-text-muted);
+          opacity: 0.6;
         }
-        [data-theme="light"] .task-chat-input {
-          background: rgba(0, 0, 0, 0.03) !important;
-          border-color: rgba(0, 0, 0, 0.1) !important;
-          color: #1a1a1a !important;
+        .tc-priority {
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 3px;
         }
-        [data-theme="light"] .task-chat-input::placeholder {
-          color: rgba(0, 0, 0, 0.3) !important;
+        .tc-due {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          color: var(--color-text-muted);
         }
-        [data-theme="light"] .task-card {
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-        }
-        [data-theme="light"] .task-card:hover {
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
-        }
-        [data-theme="light"] .task-agent-block {
-          background: rgba(0, 0, 0, 0.02) !important;
-        }
-        [data-theme="light"] .task-category {
-          background: rgba(0, 0, 0, 0.04) !important;
-        }
-        [data-theme="light"] .task-action-btn {
-          background: rgba(0, 0, 0, 0.03) !important;
-          border-color: rgba(0, 0, 0, 0.08) !important;
-        }
-        [data-theme="light"] .edit-overlay {
-          background: rgba(255, 255, 255, 0.5) !important;
-        }
-        [data-theme="light"] .tab-switcher {
-          background: rgba(0, 0, 0, 0.02) !important;
-        }
-        [data-theme="light"] .tab-btn.active {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-        }
-        [data-theme="light"] .create-btn {
-          background: rgba(124, 92, 252, 0.06) !important;
-        }
-        [data-theme="light"] .add-task-ghost {
-          border-color: rgba(0, 0, 0, 0.12) !important;
-        }
-        [data-theme="light"] .task-assign-prompt {
-          background: rgba(124, 92, 252, 0.03) !important;
+        .tc-due.overdue {
+          color: #ff4757;
+          font-weight: 700;
         }
 
-        @media (max-width: 900px) {
-          .kanban-board { grid-template-columns: 1fr; }
-          .task-chat-overlay { width: 100%; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+
+        @media (max-width: 768px) {
+          .board-grid { grid-template-columns: 1fr; }
+          .top-bar { flex-direction: column; align-items: stretch; }
         }
       `}</style>
     </div>
