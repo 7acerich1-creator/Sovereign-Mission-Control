@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import Sidebar from "@/components/Sidebar";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
             </main>
           </AgentProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
