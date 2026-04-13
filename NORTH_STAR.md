@@ -18,14 +18,23 @@ These are the only numbers that matter. Mission Control's dashboards should surf
 4. **Paid conversions per week** (Stripe). Target: 1/wk at any tier to prove the funnel works end-to-end.
 5. **Revenue per week** (Stripe net). Target: $77/wk → $770/wk → $7,700/wk.
 
-**Current reality (as of 2026-04-10, 46 sessions in):**
-- Top-of-funnel attention: unknown, likely near zero
-- Landing visitors: unknown, likely near zero
-- Signups: 0 confirmed
-- Paid conversions: 0
-- Revenue: $0
+**Current reality (measured 2026-04-10, Session 46 funnel audit):**
 
-**The bottleneck is not MC. It is not the bot. It is the top of the funnel.**
+| Metric | Target/wk | Current (28d → /wk) | Notes |
+|---|---|---|---|
+| 1. Top-of-funnel attention | 10,000/wk | ~930/wk combined | Ace Richie YT 925/wk, Containment Field 5/wk, Buffer 322 impressions total |
+| 2. Landing visitors | 500/wk | **0 AND UNMEASURABLE** | Vercel shows 0. `@vercel/analytics` package NOT INSTALLED on sovereign-landing. |
+| 3. Email signups | 50/wk | 0 | |
+| 4. Paid conversions | 1/wk | 0 | Stripe $0.00 7-day |
+| 5. Revenue | $77/wk | $0/wk | |
+
+**Bright signal:** Ace Richie YT — 44 subs (+12/28d organic), 14.3% CTR on "OUTDATED CODE", 3.7K views/28d. **This is the entire mission's brightest organic channel.**
+
+**Broken link:** sovereign-landing has no analytics package installed. The measurement layer does not exist. Metric #2 cannot be known until this is fixed.
+
+**X/Twitter CANCELED 2026-04-10.** Distribution strategy must be updated.
+
+**The bottleneck is not MC. It is not the bot. The bottleneck is the severed spine between Ace Richie YT (which has attention) and sovereign-landing (which has no CTA path and no analytics).**
 
 ---
 
@@ -37,9 +46,9 @@ Current `/finance` and `/content` pages should be audited against this rule. If 
 ---
 
 ## The Current Highest-Leverage Action (UPDATE EVERY SESSION)
-**Action:** `PENDING_REVIEW` — first MC-side session should audit the dashboard against the 5 input metrics and build whichever widget is missing or broken first.
+**Action:** **Reconnect Ace Richie YT → sovereign-landing in 7 days.** Canonical plan lives in `C:\Users\richi\Sovereign-Sentinel-Bot\NORTH_STAR.md`. MC's job this week is to surface metric #2 (landing visitors) on the dashboard the moment `@vercel/analytics` starts reporting data. If `/finance` or `/content` doesn't show a landing-visitors widget with week-over-week delta, that widget is the one MC build task that is revenue-connected this week.
 
-**Last updated:** 2026-04-10 (Session 46 — mirror installed, no MC work yet)
+**Last updated:** 2026-04-10 (Session 46 — first real funnel audit done, worst metric is sovereign-landing measurement layer, MC's revenue-connected task is the landing-visitors widget)
 
 ---
 

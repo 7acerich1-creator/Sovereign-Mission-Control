@@ -4,22 +4,26 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Radio,
-  TrendingUp,
-  Users,
-  Eye,
-  BarChart3,
-  Zap,
   CheckCircle,
-  AlertCircle,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
+  AlertTriangle,
+  Activity,
+  Server,
+  Cpu,
+  DollarSign,
+  BarChart3,
+  Send,
+  Mic,
+  Video,
+  Database,
+  Cloud,
+  Bot,
+  Mail,
   Globe,
-  MessageCircle,
-  Heart,
-  Share2,
+  Zap,
+  XCircle,
 } from 'lucide-react';
 
+/* ── Types ── */
 type Connection = {
   id: string;
   name: string;
@@ -27,482 +31,383 @@ type Connection = {
   status: 'active' | 'inactive';
   via_zapier?: boolean;
   last_sync?: string;
+  category: string;
+  description?: string;
+  health_table?: string;
+  health_column?: string;
+  stale_hours?: number;
 };
 
-// Platform config with icons and colors
-const PLATFORM_META: Record<string, { color: string; icon: string; category: string }> = {
-  telegram:   { color: '#0088CC', icon: 'T',  category: 'messaging' },
-  instagram:  { color: '#E4405F', icon: 'IG', category: 'social' },
-  youtube:    { color: '#FF0000', icon: 'YT', category: 'content' },
-  tiktok:     { color: '#00F2EA', icon: 'TK', category: 'social' },
-  twitter:    { color: '#1DA1F2', icon: 'X',  category: 'social' },
-  stripe:     { color: '#635BFF', icon: 'S',  category: 'revenue' },
-  supabase:   { color: '#3ECF8E', icon: 'SB', category: 'data' },
-  elevenlabs: { color: '#FFFFFF', icon: 'EL', category: 'ai' },
-  anthropic:  { color: '#D4A574', icon: 'AI', category: 'ai' },
-  vercel:     { color: '#FFFFFF', icon: 'V',  category: 'infra' },
-  make:       { color: '#6D00CC', icon: 'MK', category: 'automation' },
-  zapier:     { color: '#FF4A00', icon: 'ZP', category: 'automation' },
-  notion:     { color: '#FFFFFF', icon: 'N',  category: 'data' },
-  gumroad:    { color: '#FF90E8', icon: 'GR', category: 'revenue' },
-  clickup:    { color: '#7B68EE', icon: 'CU', category: 'ops' },
+type HealthPulse = {
+  lastPipelineRun: string | null;
+  lastYTFetch: string | null;
+  dispatchCount24h: number;
+  draftsCount7d: number;
 };
 
-function getPlatformMeta(name: string) {
-  const key = name.toLowerCase().replace(/[^a-z]/g, '');
-  for (const [k, v] of Object.entries(PLATFORM_META)) {
-    if (key.includes(k)) return v;
-  }
-  return { color: '#7C5CFC', icon: name.charAt(0).toUpperCase(), category: 'other' };
+/* ── Provider Meta ── */
+const PROVIDER_META: Record<string, { color: string; icon: string }> = {
+  'gravity-claw': { color: '#7C5CFC', icon: 'GC' },
+  buffer:         { color: '#231F20', icon: 'BF' },
+  runpod:         { color: '#673AB7', icon: 'RP' },
+  groq:           { color: '#F55036', icon: 'GQ' },
+  google:         { color: '#4285F4', icon: 'G' },
+  elevenlabs:     { color: '#FFFFFF', icon: 'EL' },
+  railway:        { color: '#0B0D0E', icon: 'RW' },
+  vercel:         { color: '#FFFFFF', icon: 'VC' },
+  supabase:       { color: '#3ECF8E', icon: 'SB' },
+  pinecone:       { color: '#10B981', icon: 'PC' },
+  stripe:         { color: '#635BFF', icon: 'ST' },
+  telegram:       { color: '#0088CC', icon: 'TG' },
+  resend:         { color: '#FFFFFF', icon: 'RS' },
+};
+
+const CATEGORY_ORDER = ['pipeline', 'ai', 'infra', 'revenue', 'comms', 'analytics'];
+const CATEGORY_LABELS: Record<string, string> = {
+  pipeline:  'CONTENT PIPELINE',
+  ai:        'AI ENGINES',
+  infra:     'INFRASTRUCTURE',
+  revenue:   'REVENUE & EMAIL',
+  comms:     'COMMUNICATIONS',
+  analytics: 'ANALYTICS',
+};
+const CATEGORY_ICONS: Record<string, any> = {
+  pipeline:  Video,
+  ai:        Cpu,
+  infra:     Server,
+  revenue:   DollarSign,
+  comms:     Send,
+  analytics: BarChart3,
+};
+
+/* ── Helpers ── */
+function relativeTime(ts: string | null): string {
+  if (!ts) return 'never';
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }
 
+function hoursAgo(ts: string | null): number {
+  if (!ts) return Infinity;
+  return (Date.now() - new Date(ts).getTime()) / 3600000;
+}
+
+function healthColor(ts: string | null, staleHours: number): string {
+  const h = hoursAgo(ts);
+  if (h <= staleHours) return '#1D9E75';
+  if (h <= staleHours * 2) return '#C9A84C';
+  return '#ef4444';
+}
+
+function getMeta(provider: string) {
+  return PROVIDER_META[provider] || { color: '#7C5CFC', icon: provider.charAt(0).toUpperCase() };
+}
+
+/* ── Component ── */
 export default function Connections() {
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [pulse, setPulse] = useState<HealthPulse>({ lastPipelineRun: null, lastYTFetch: null, dispatchCount24h: 0, draftsCount7d: 0 });
   const [loading, setLoading] = useState(true);
+  const [showMakeBanner, setShowMakeBanner] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchAll();
     const channel = supabase
-      .channel('connections-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_connections' }, () => fetchData())
+      .channel('connections-health')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_connections' }, () => fetchConnections())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  async function fetchData() {
+  async function fetchAll() {
     setLoading(true);
-    const { data } = await supabase.from('system_connections').select('*').order('name', { ascending: true });
-    if (data) setConnections(data as Connection[]);
+    await Promise.all([fetchConnections(), fetchPulse()]);
     setLoading(false);
+  }
+
+  async function fetchConnections() {
+    const { data } = await supabase.from('system_connections').select('*').order('name');
+    if (data) setConnections(data as Connection[]);
+  }
+
+  async function fetchPulse() {
+    const [ceq, yta, cd, cdr] = await Promise.all([
+      supabase.from('content_engine_queue').select('created_at').order('created_at', { ascending: false }).limit(1),
+      supabase.from('youtube_analytics').select('fetched_at').order('fetched_at', { ascending: false }).limit(1),
+      supabase.from('crew_dispatch').select('id', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 86400000).toISOString()),
+      supabase.from('content_drafts').select('id', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 604800000).toISOString()),
+    ]);
+    setPulse({
+      lastPipelineRun: ceq.data?.[0]?.created_at || null,
+      lastYTFetch: yta.data?.[0]?.fetched_at || null,
+      dispatchCount24h: cd.count || 0,
+      draftsCount7d: cdr.count || 0,
+    });
   }
 
   const activeCount = connections.filter(c => c.status === 'active').length;
   const totalCount = connections.length;
-  const categories = connections.reduce((acc, c) => {
-    const cat = getPlatformMeta(c.name).category;
-    acc[cat] = (acc[cat] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+
+  // Detect degraded connections
+  const degraded = connections.filter(c => {
+    if (c.status === 'inactive') return true;
+    if (c.last_sync && c.stale_hours && hoursAgo(c.last_sync) > (c.stale_hours || 24) * 2) return true;
+    return false;
+  });
 
   // Group by category
   const grouped: Record<string, Connection[]> = {};
   connections.forEach(c => {
-    const cat = getPlatformMeta(c.name).category;
+    const cat = c.category || 'other';
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(c);
   });
 
-  const categoryLabels: Record<string, string> = {
-    social: 'SOCIAL CHANNELS',
-    messaging: 'MESSAGING',
-    content: 'CONTENT PLATFORMS',
-    revenue: 'REVENUE INFRASTRUCTURE',
-    data: 'DATA LAYER',
-    ai: 'AI ENGINES',
-    infra: 'INFRASTRUCTURE',
-    automation: 'AUTOMATION',
-    ops: 'OPERATIONS',
-    other: 'OTHER',
-  };
+  const pulseCards = [
+    { label: 'LAST PIPELINE RUN', value: relativeTime(pulse.lastPipelineRun), color: healthColor(pulse.lastPipelineRun, 24), sub: 'content_engine_queue' },
+    { label: 'LAST YT FETCH', value: relativeTime(pulse.lastYTFetch), color: healthColor(pulse.lastYTFetch, 26), sub: 'youtube_analytics' },
+    { label: 'DISPATCHES (24H)', value: String(pulse.dispatchCount24h), color: pulse.dispatchCount24h > 0 ? '#1D9E75' : '#C9A84C', sub: 'crew_dispatch' },
+    { label: 'DRAFTS (7D)', value: String(pulse.draftsCount7d), color: pulse.draftsCount7d > 0 ? '#1D9E75' : '#C9A84C', sub: 'content_drafts' },
+  ];
 
   return (
-    <div className="vi-page fade-in">
-      <header className="vi-header">
-        <div>
-          <h1 className="vi-title">SIGNAL INTELLIGENCE</h1>
-          <p className="vi-subtitle">NETWORK TOPOLOGY :: REAL-TIME CONNECTION MATRIX</p>
+    <div className="sh-page fade-in">
+      {/* ALERT BANNER */}
+      {degraded.length > 0 && (
+        <div className="sh-alert">
+          <AlertTriangle size={14} />
+          <span>DEGRADED — {degraded.length} connection{degraded.length > 1 ? 's' : ''} require attention: {degraded.map(d => d.name).join(', ')}</span>
         </div>
-        <div className="vi-health">
-          <div className="vi-health-ring">
-            <svg viewBox="0 0 80 80" className="vi-ring-svg">
+      )}
+
+      {/* HEADER */}
+      <header className="sh-header">
+        <div>
+          <h1 className="sh-title">SYSTEM HEALTH</h1>
+          <p className="sh-subtitle">OPERATIONAL STATUS :: LIVE PIPELINE MONITOR</p>
+        </div>
+        <div className="sh-health">
+          <div className="sh-ring-wrap">
+            <svg viewBox="0 0 80 80" className="sh-ring-svg">
               <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-              <circle
-                cx="40" cy="40" r="34" fill="none"
+              <circle cx="40" cy="40" r="34" fill="none"
                 stroke={activeCount === totalCount ? '#1D9E75' : '#C9A84C'}
                 strokeWidth="6"
                 strokeDasharray={`${(activeCount / Math.max(totalCount, 1)) * 213.6} 213.6`}
-                strokeLinecap="round"
-                transform="rotate(-90 40 40)"
-              />
+                strokeLinecap="round" transform="rotate(-90 40 40)" />
             </svg>
-            <div className="vi-ring-center">
-              <span className="vi-ring-value">{activeCount}</span>
-              <span className="vi-ring-label">/ {totalCount}</span>
+            <div className="sh-ring-center">
+              <span className="sh-ring-val">{activeCount}</span>
+              <span className="sh-ring-lbl">/ {totalCount}</span>
             </div>
           </div>
-          <div className="vi-health-text">
-            <span className="vi-health-status">{activeCount === totalCount ? 'ALL SYSTEMS ONLINE' : `${totalCount - activeCount} OFFLINE`}</span>
-            <span className="vi-health-detail">Network Health</span>
+          <div className="sh-health-text">
+            <span className="sh-health-status">{activeCount === totalCount ? 'ALL SYSTEMS ONLINE' : `${totalCount - activeCount} OFFLINE`}</span>
+            <span className="sh-health-detail">System Health</span>
           </div>
         </div>
       </header>
 
-      {/* SIGNAL METRICS — placeholder for future real data */}
-      <section className="vi-metrics">
-        <div className="vi-metric-card">
-          <div className="vi-mc-icon"><Globe size={16} /></div>
-          <div className="vi-mc-body">
-            <span className="vi-mc-label">TOTAL REACH</span>
-            <span className="vi-mc-value">---</span>
-            <span className="vi-mc-delta neutral"><Minus size={10} /> awaiting data</span>
-          </div>
-        </div>
-        <div className="vi-metric-card">
-          <div className="vi-mc-icon"><Users size={16} /></div>
-          <div className="vi-mc-body">
-            <span className="vi-mc-label">FOLLOWERS</span>
-            <span className="vi-mc-value">---</span>
-            <span className="vi-mc-delta neutral"><Minus size={10} /> awaiting data</span>
-          </div>
-        </div>
-        <div className="vi-metric-card">
-          <div className="vi-mc-icon"><Heart size={16} /></div>
-          <div className="vi-mc-body">
-            <span className="vi-mc-label">ENGAGEMENT</span>
-            <span className="vi-mc-value">---</span>
-            <span className="vi-mc-delta neutral"><Minus size={10} /> awaiting data</span>
-          </div>
-        </div>
-        <div className="vi-metric-card">
-          <div className="vi-mc-icon"><MessageCircle size={16} /></div>
-          <div className="vi-mc-body">
-            <span className="vi-mc-label">CONVERSATIONS</span>
-            <span className="vi-mc-value">---</span>
-            <span className="vi-mc-delta neutral"><Minus size={10} /> awaiting data</span>
-          </div>
-        </div>
-      </section>
-
-      {/* CONNECTION MATRIX BY CATEGORY */}
-      <section className="vi-matrix">
-        {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([cat, conns]) => (
-          <div key={cat} className="vi-category">
-            <div className="vi-cat-header">
-              <Radio size={12} />
-              <span>{categoryLabels[cat] || cat.toUpperCase()}</span>
-              <span className="vi-cat-count">{conns.filter(c => c.status === 'active').length}/{conns.length}</span>
-            </div>
-            <div className="vi-cat-grid">
-              {conns.map(conn => {
-                const meta = getPlatformMeta(conn.name);
-                const isActive = conn.status === 'active';
-                return (
-                  <div key={conn.id} className={`vi-node ${isActive ? 'active' : 'inactive'}`}>
-                    <div className="vi-node-icon" style={{ borderColor: isActive ? meta.color : 'rgba(255,255,255,0.1)' }}>
-                      <span style={{ color: isActive ? meta.color : 'var(--color-text-muted)' }}>{meta.icon}</span>
-                      <div className={`vi-node-dot ${isActive ? 'on' : 'off'}`} />
-                    </div>
-                    <div className="vi-node-info">
-                      <span className="vi-node-name">{conn.name}</span>
-                      <span className="vi-node-status">{isActive ? 'CONNECTED' : 'OFFLINE'}</span>
-                    </div>
-                    {conn.via_zapier && (
-                      <div className="vi-zapier-tag"><Zap size={8} /></div>
-                    )}
-                    {/* Future: real metric bar */}
-                    <div className="vi-node-bar">
-                      <div className="vi-node-bar-fill" style={{
-                        width: isActive ? '100%' : '0%',
-                        background: isActive ? meta.color : 'transparent',
-                      }} />
-                    </div>
-                  </div>
-                );
-              })}
+      {/* PULSE CARDS */}
+      <section className="sh-pulse">
+        {pulseCards.map(card => (
+          <div key={card.label} className="sh-pulse-card">
+            <div className="sh-pulse-dot" style={{ background: card.color, boxShadow: `0 0 8px ${card.color}40` }} />
+            <div className="sh-pulse-body">
+              <span className="sh-pulse-label">{card.label}</span>
+              <span className="sh-pulse-value" style={{ color: card.color }}>{card.value}</span>
+              <span className="sh-pulse-sub">{card.sub}</span>
             </div>
           </div>
         ))}
       </section>
 
+      {/* CONNECTION GRID */}
+      <section className="sh-grid">
+        {CATEGORY_ORDER.filter(cat => grouped[cat]).map(cat => {
+          const CatIcon = CATEGORY_ICONS[cat] || Radio;
+          const conns = grouped[cat];
+          return (
+            <div key={cat} className="sh-category">
+              <div className="sh-cat-header">
+                <CatIcon size={12} />
+                <span>{CATEGORY_LABELS[cat] || cat.toUpperCase()}</span>
+                <span className="sh-cat-count">{conns.filter(c => c.status === 'active').length}/{conns.length}</span>
+              </div>
+              <div className="sh-cat-body">
+                {conns.map(conn => {
+                  const meta = getMeta(conn.provider);
+                  const isActive = conn.status === 'active';
+                  const stale = conn.last_sync && conn.stale_hours ? hoursAgo(conn.last_sync) > conn.stale_hours * 2 : false;
+                  return (
+                    <div key={conn.id} className={`sh-conn ${isActive ? '' : 'offline'}`}>
+                      <div className="sh-conn-icon" style={{ borderColor: isActive ? meta.color : 'rgba(255,255,255,0.1)' }}>
+                        <span style={{ color: isActive ? meta.color : 'var(--color-text-muted)' }}>{meta.icon}</span>
+                        <div className={`sh-dot ${isActive ? 'on' : 'off'}`} />
+                      </div>
+                      <div className="sh-conn-info">
+                        <div className="sh-conn-top">
+                          <span className="sh-conn-name">{conn.name}</span>
+                          {stale && <span className="sh-stale-badge">STALE</span>}
+                        </div>
+                        {conn.description && <span className="sh-conn-desc">{conn.description}</span>}
+                        <div className="sh-conn-meta">
+                          <span className={`sh-conn-status ${isActive ? 'on' : 'off'}`}>
+                            {isActive ? 'ONLINE' : 'OFFLINE'}
+                          </span>
+                          {conn.last_sync && <span className="sh-conn-sync">{relativeTime(conn.last_sync)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* MAKE.COM CANCELLATION REMINDER */}
+      {showMakeBanner && (
+        <div className="sh-make-banner">
+          <div className="sh-make-content">
+            <AlertTriangle size={14} />
+            <span><strong>ACTION REQUIRED:</strong> Cancel your Make.com subscription — all scenarios deprecated and replaced with native bot pipelines.</span>
+          </div>
+          <button className="sh-make-dismiss" onClick={() => setShowMakeBanner(false)}>
+            <XCircle size={14} />
+          </button>
+        </div>
+      )}
+
       {connections.length === 0 && !loading && (
-        <div className="vi-empty">
-          <Radio size={40} className="vi-empty-icon" />
+        <div className="sh-empty">
+          <Radio size={40} style={{ opacity: 0.15 }} />
           <span>NO SIGNALS DETECTED</span>
-          <span className="vi-empty-sub">Connect platforms to activate intelligence gathering</span>
         </div>
       )}
 
       <style jsx>{`
-        .vi-page {
-          display: flex;
-          flex-direction: column;
-          gap: 28px;
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 0 20px 60px;
+        .sh-page { display: flex; flex-direction: column; gap: 24px; max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
+
+        /* ALERT */
+        .sh-alert {
+          display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+          background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 10px; color: #ef4444;
+          font-size: 11px; font-weight: 700; font-family: var(--font-mono); letter-spacing: 0.04em;
         }
 
-        .vi-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 32px 0 0;
-        }
-        .vi-title {
-          font-size: 28px;
-          font-weight: 900;
-          letter-spacing: 0.08em;
-        }
-        .vi-subtitle {
-          font-size: 10px;
-          font-family: var(--font-mono);
-          color: var(--color-text-muted);
-          letter-spacing: 0.12em;
-          margin-top: 4px;
-        }
+        /* HEADER */
+        .sh-header { display: flex; justify-content: space-between; align-items: center; padding: 32px 0 0; }
+        .sh-title { font-size: 28px; font-weight: 900; letter-spacing: 0.08em; }
+        .sh-subtitle { font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted); letter-spacing: 0.12em; margin-top: 4px; }
+        .sh-health { display: flex; align-items: center; gap: 16px; }
+        .sh-ring-wrap { position: relative; width: 72px; height: 72px; }
+        .sh-ring-svg { width: 100%; height: 100%; }
+        .sh-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .sh-ring-val { font-size: 20px; font-weight: 900; font-family: var(--font-mono); line-height: 1; }
+        .sh-ring-lbl { font-size: 9px; color: var(--color-text-muted); font-family: var(--font-mono); }
+        .sh-health-text { display: flex; flex-direction: column; gap: 2px; }
+        .sh-health-status { font-size: 11px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 0.05em; }
+        .sh-health-detail { font-size: 9px; color: var(--color-text-muted); font-family: var(--font-mono); }
 
-        .vi-health {
-          display: flex;
-          align-items: center;
-          gap: 16px;
+        /* PULSE */
+        .sh-pulse { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .sh-pulse-card {
+          background: var(--color-bg-surface); border: 1px solid var(--border-color);
+          border-radius: 12px; padding: 18px; display: flex; gap: 14px; align-items: flex-start;
         }
-        .vi-health-ring {
-          position: relative;
-          width: 72px;
-          height: 72px;
-        }
-        .vi-ring-svg { width: 100%; height: 100%; }
-        .vi-ring-center {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-        }
-        .vi-ring-value {
-          font-size: 20px;
-          font-weight: 900;
-          font-family: var(--font-mono);
-          color: var(--color-text-primary);
-          line-height: 1;
-        }
-        .vi-ring-label {
-          font-size: 9px;
-          color: var(--color-text-muted);
-          font-family: var(--font-mono);
-        }
-        .vi-health-text {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .vi-health-status {
-          font-size: 11px;
-          font-weight: 800;
-          font-family: var(--font-mono);
-          letter-spacing: 0.05em;
-          color: var(--color-text-primary);
-        }
-        .vi-health-detail {
-          font-size: 9px;
-          color: var(--color-text-muted);
-          font-family: var(--font-mono);
-        }
+        .sh-pulse-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+        .sh-pulse-body { display: flex; flex-direction: column; gap: 2px; }
+        .sh-pulse-label { font-size: 9px; font-weight: 800; font-family: var(--font-mono); color: var(--color-text-muted); letter-spacing: 0.08em; }
+        .sh-pulse-value { font-size: 22px; font-weight: 900; font-family: var(--font-mono); line-height: 1.1; }
+        .sh-pulse-sub { font-size: 8px; font-family: var(--font-mono); color: var(--color-text-muted); opacity: 0.6; }
 
-        /* METRICS */
-        .vi-metrics {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 14px;
-        }
-        .vi-metric-card {
-          background: var(--color-bg-surface);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 18px;
-          display: flex;
-          gap: 14px;
-          align-items: flex-start;
-        }
-        .vi-mc-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: rgba(124,92,252,0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #7C5CFC;
-          flex-shrink: 0;
-        }
-        .vi-mc-body {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .vi-mc-label {
-          font-size: 9px;
-          font-weight: 800;
-          font-family: var(--font-mono);
-          color: var(--color-text-muted);
-          letter-spacing: 0.08em;
-        }
-        .vi-mc-value {
-          font-size: 22px;
-          font-weight: 900;
-          font-family: var(--font-mono);
-          color: var(--color-text-primary);
-          line-height: 1.1;
-        }
-        .vi-mc-delta {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 9px;
-          font-family: var(--font-mono);
-        }
-        .vi-mc-delta.up { color: #1D9E75; }
-        .vi-mc-delta.down { color: #ef4444; }
-        .vi-mc-delta.neutral { color: var(--color-text-muted); }
-
-        /* MATRIX */
-        .vi-matrix {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        .vi-category {
-          background: var(--color-bg-surface);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        .vi-cat-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 14px 20px;
+        /* GRID */
+        .sh-grid { display: flex; flex-direction: column; gap: 20px; }
+        .sh-category { background: var(--color-bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+        .sh-cat-header {
+          display: flex; align-items: center; gap: 8px; padding: 14px 20px;
           border-bottom: 1px solid var(--border-color);
-          font-size: 10px;
-          font-weight: 800;
-          font-family: var(--font-mono);
-          letter-spacing: 0.08em;
-          color: var(--color-text-muted);
+          font-size: 10px; font-weight: 800; font-family: var(--font-mono);
+          letter-spacing: 0.08em; color: var(--color-text-muted);
         }
-        .vi-cat-count {
-          margin-left: auto;
-          color: #7C5CFC;
-          background: rgba(124,92,252,0.1);
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 9px;
+        .sh-cat-count {
+          margin-left: auto; color: #7C5CFC; background: rgba(124,92,252,0.1);
+          padding: 2px 8px; border-radius: 4px; font-size: 9px;
         }
-        .vi-cat-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: 1px;
-          background: var(--border-color);
-        }
+        .sh-cat-body { display: flex; flex-direction: column; }
 
-        .vi-node {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 20px;
-          background: var(--color-bg-surface);
-          position: relative;
-          transition: background 0.15s;
+        /* CONNECTION ROW */
+        .sh-conn {
+          display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px;
+          border-bottom: 1px solid var(--border-color); transition: background 0.15s;
         }
-        .vi-node:hover { background: rgba(255,255,255,0.02); }
-        .vi-node.inactive { opacity: 0.5; }
+        .sh-conn:last-child { border-bottom: none; }
+        .sh-conn:hover { background: rgba(255,255,255,0.02); }
+        .sh-conn.offline { opacity: 0.45; }
 
-        .vi-node-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: 1.5px solid;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 900;
-          font-family: var(--font-mono);
-          position: relative;
-          flex-shrink: 0;
-          background: rgba(0,0,0,0.3);
+        .sh-conn-icon {
+          width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 900; font-family: var(--font-mono);
+          position: relative; flex-shrink: 0; background: rgba(0,0,0,0.3);
         }
-        .vi-node-dot {
-          position: absolute;
-          bottom: -2px;
-          right: -2px;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          border: 2px solid var(--color-bg-surface);
+        .sh-dot {
+          position: absolute; bottom: -2px; right: -2px;
+          width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--color-bg-surface);
         }
-        .vi-node-dot.on { background: #1D9E75; box-shadow: 0 0 6px rgba(29,158,117,0.6); }
-        .vi-node-dot.off { background: #555; }
+        .sh-dot.on { background: #1D9E75; box-shadow: 0 0 6px rgba(29,158,117,0.6); }
+        .sh-dot.off { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.4); }
 
-        .vi-node-info {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          flex: 1;
-          min-width: 0;
+        .sh-conn-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .sh-conn-top { display: flex; align-items: center; gap: 8px; }
+        .sh-conn-name { font-size: 13px; font-weight: 700; }
+        .sh-stale-badge {
+          font-size: 8px; font-weight: 900; font-family: var(--font-mono);
+          background: rgba(201,168,76,0.15); color: #C9A84C;
+          padding: 1px 6px; border-radius: 3px; letter-spacing: 0.06em;
         }
-        .vi-node-name {
-          font-size: 12px;
-          font-weight: 700;
-          color: var(--color-text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        .sh-conn-desc { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; }
+        .sh-conn-meta { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
+        .sh-conn-status {
+          font-size: 8px; font-weight: 900; font-family: var(--font-mono); letter-spacing: 0.08em;
         }
-        .vi-node-status {
-          font-size: 8px;
-          font-weight: 800;
-          font-family: var(--font-mono);
-          letter-spacing: 0.08em;
-          color: var(--color-text-muted);
-        }
+        .sh-conn-status.on { color: #1D9E75; }
+        .sh-conn-status.off { color: #ef4444; }
+        .sh-conn-sync { font-size: 9px; font-family: var(--font-mono); color: var(--color-text-muted); }
 
-        .vi-zapier-tag {
-          width: 18px;
-          height: 18px;
-          border-radius: 4px;
-          background: rgba(255,78,0,0.15);
-          color: #FF4E00;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
+        /* MAKE BANNER */
+        .sh-make-banner {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 18px; background: rgba(201,168,76,0.08);
+          border: 1px solid rgba(201,168,76,0.25); border-radius: 10px;
         }
+        .sh-make-content {
+          display: flex; align-items: center; gap: 10px; color: #C9A84C;
+          font-size: 11px; font-family: var(--font-mono);
+        }
+        .sh-make-dismiss {
+          background: none; border: none; color: #C9A84C; cursor: pointer; opacity: 0.6;
+          padding: 4px; display: flex; align-items: center;
+        }
+        .sh-make-dismiss:hover { opacity: 1; }
 
-        .vi-node-bar {
-          width: 40px;
-          height: 4px;
-          background: rgba(255,255,255,0.04);
-          border-radius: 2px;
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-        .vi-node-bar-fill {
-          height: 100%;
-          border-radius: 2px;
-          transition: width 0.4s;
-          opacity: 0.6;
-        }
-
-        .vi-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-          padding: 80px 20px;
-          color: var(--color-text-muted);
-          text-align: center;
-        }
-        .vi-empty-icon { opacity: 0.15; }
-        .vi-empty-sub { font-size: 11px; opacity: 0.6; }
+        /* EMPTY */
+        .sh-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 80px 20px; color: var(--color-text-muted); }
 
         @media (max-width: 900px) {
-          .vi-metrics { grid-template-columns: repeat(2, 1fr); }
-          .vi-header { flex-direction: column; gap: 20px; align-items: flex-start; }
+          .sh-pulse { grid-template-columns: repeat(2, 1fr); }
+          .sh-header { flex-direction: column; gap: 20px; align-items: flex-start; }
         }
-        @media (max-width: 500px) {
-          .vi-metrics { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 500px) { .sh-pulse { grid-template-columns: 1fr; } }
       `}</style>
     </div>
   );
