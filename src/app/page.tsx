@@ -181,7 +181,11 @@ function timeAgo(dateStr: string): string {
 }
 
 function isOnline(lastSeen: string): boolean {
-  return Date.now() - new Date(lastSeen).getTime() < 24 * 60 * 60 * 1000;
+  return Date.now() - new Date(lastSeen).getTime() < 6 * 60 * 60 * 1000; // Active within 6 hours
+}
+function isIdle(lastSeen: string): boolean {
+  const diff = Date.now() - new Date(lastSeen).getTime();
+  return diff >= 6 * 60 * 60 * 1000 && diff < 24 * 60 * 60 * 1000; // 6-24h = idle
 }
 
 /* ---------------- ORB CANVAS ---------------- */
@@ -517,12 +521,35 @@ export default function MissionControl() {
   }
 
   async function fetchAgentHistory() {
-    const { data } = await supabase
+    // Primary source: crew_dispatch (where real agent activity lives)
+    const { data: dispatches } = await supabase
+      .from("crew_dispatch")
+      .select("to_agent, task_type, created_at")
+      .order("created_at", { ascending: false })
+      .limit(60);
+    // Also check agent_history as secondary
+    const { data: history } = await supabase
       .from("agent_history")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
-    if (data) setAgentHistory(data);
+    // Merge: convert dispatches into agent_history shape for the cards
+    const merged: AgentHistoryEntry[] = [];
+    if (dispatches) {
+      for (const d of dispatches) {
+        merged.push({
+          id: `dispatch-${d.to_agent}-${d.created_at}`,
+          agent_name: d.to_agent,
+          role: "dispatch",
+          content: d.task_type || "task dispatch",
+          created_at: d.created_at,
+        });
+      }
+    }
+    if (history) merged.push(...history);
+    // Sort by most recent
+    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setAgentHistory(merged);
   }
 
   async function fetchCommandQueue() {
@@ -679,6 +706,7 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "mission_metrics" }, () => fetchMetrics())
       .on("postgres_changes", { event: "*", schema: "public", table: "revenue_log" }, () => fetchRevenue())
       .on("postgres_changes", { event: "*", schema: "public", table: "agent_history" }, () => fetchAgentHistory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "crew_dispatch" }, () => fetchAgentHistory())
       .on("postgres_changes", { event: "*", schema: "public", table: "command_queue" }, () => fetchCommandQueue())
       .on("postgres_changes", { event: "*", schema: "public", table: "content_transmissions" }, () => fetchContentPipeline())
       .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
@@ -1043,10 +1071,10 @@ export default function MissionControl() {
                   {task.status === "To Do" && (
                     <button
                       className="task-action-btn activate-btn"
-                      title="Approve — move to In Progress"
+                      title="Start this task"
                       onClick={() => approveCrewTask(task.id)}
                     >
-                      <ThumbsUp size={14} />
+                      <Play size={14} /> <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', marginLeft: '2px' }}>START</span>
                     </button>
                   )}
                   {task.status === "In Progress" && (
@@ -1055,7 +1083,7 @@ export default function MissionControl() {
                       title="Mark complete"
                       onClick={() => completeCrewTask(task.id)}
                     >
-                      <CheckCircle size={14} />
+                      <CheckCircle size={14} /> <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', marginLeft: '2px' }}>DONE</span>
                     </button>
                   )}
                 </span>
@@ -1216,11 +1244,11 @@ export default function MissionControl() {
                   <span className="draft-title">{d.title}</span>
                   <span className="draft-preview">{d.body?.length > 120 ? d.body.slice(0, 120) + "..." : d.body}</span>
                   <div className="draft-actions">
-                    <button className="task-action-btn activate-btn" title="Approve" onClick={() => approveDraft(d.id)}>
-                      <ThumbsUp size={12} /> <span>Approve</span>
+                    <button className="task-action-btn activate-btn" title="Approve — sends to bot publish queue" onClick={() => { approveDraft(d.id); }}>
+                      <CheckCircle size={12} /> <span>APPROVE</span>
                     </button>
-                    <button className="task-action-btn pause-btn" title="Reject" onClick={() => rejectDraft(d.id)}>
-                      <ThumbsDown size={12} /> <span>Reject</span>
+                    <button className="task-action-btn pause-btn" title="Reject — bot will revise or discard" onClick={() => { rejectDraft(d.id); }}>
+                      <X size={12} /> <span>REJECT</span>
                     </button>
                   </div>
                 </div>
@@ -2291,6 +2319,8 @@ export default function MissionControl() {
           display: flex;
           flex-direction: column;
           gap: 0;
+          max-height: 600px;
+          overflow-y: auto;
         }
         .briefing-row {
           display: flex;
