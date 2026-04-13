@@ -36,6 +36,7 @@ type Connection = {
   health_table?: string;
   health_column?: string;
   stale_hours?: number;
+  usage_data?: { label: string; value: string; unit: string; link?: string };
 };
 
 type HealthPulse = {
@@ -263,6 +264,13 @@ export default function Connections() {
                           </span>
                           {conn.last_sync && <span className="sh-conn-sync">{relativeTime(conn.last_sync)}</span>}
                         </div>
+                        {conn.usage_data && (
+                          <a href={conn.usage_data.link || '#'} target="_blank" rel="noopener noreferrer" className="sh-usage">
+                            <span className="sh-usage-label">{conn.usage_data.label}:</span>
+                            <span className="sh-usage-value">{conn.usage_data.value}</span>
+                            {conn.usage_data.unit && <span className="sh-usage-unit">{conn.usage_data.unit}</span>}
+                          </a>
+                        )}
                       </div>
                     </div>
                   );
@@ -383,6 +391,18 @@ export default function Connections() {
         .sh-conn-status.on { color: #1D9E75; }
         .sh-conn-status.off { color: #ef4444; }
         .sh-conn-sync { font-size: 9px; font-family: var(--font-mono); color: var(--color-text-muted); }
+
+        /* USAGE */
+        .sh-usage {
+          display: flex; align-items: center; gap: 6px; margin-top: 4px;
+          padding: 4px 8px; background: rgba(124,92,252,0.06);
+          border: 1px solid rgba(124,92,252,0.12); border-radius: 6px; width: fit-content;
+          text-decoration: none; color: inherit; cursor: pointer;
+        }
+        .sh-usage:hover { opacity: 0.8; }
+        .sh-usage-label { font-size: 9px; font-family: var(--font-mono); color: var(--color-text-muted); font-weight: 700; }
+        .sh-usage-value { font-size: 10px; font-family: var(--font-mono); color: #7C5CFC; font-weight: 800; }
+        .sh-usage-unit { font-size: 8px; font-family: var(--font-mono); color: var(--color-text-muted); }
 
         /* MAKE BANNER */
         .sh-make-banner {
