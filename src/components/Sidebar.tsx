@@ -19,7 +19,8 @@ import {
   Package,
   Users,
   Sun,
-  Moon
+  Moon,
+  Signal
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -28,6 +29,7 @@ const navItems = [
   { name: 'Productivity', href: '/productivity', icon: Zap },
   { name: 'Tasks & Projects', href: '/tasks', icon: CheckSquare },
   { name: 'Content Intel', href: '/content', icon: BarChart3 },
+  { name: 'Audience Signals', href: '/signals', icon: Signal },
   { name: 'Revenue Grid', href: '/finance', icon: DollarSign },
   { name: 'Glitch Log', href: '/glitch', icon: AlertTriangle },
   { name: 'Members', href: '/portals', icon: Users },
