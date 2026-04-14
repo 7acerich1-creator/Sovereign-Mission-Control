@@ -39,6 +39,12 @@ import {
   PenTool,
   BarChart3,
   Zap,
+  Mail,
+  ListTodo,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  ExternalLink,
 } from "lucide-react";
 
 /* -------------------- TYPES -------------------- */
@@ -146,6 +152,31 @@ type StripeMetrics = {
   balance: number;
   velocity: number;
   fetched_at: string;
+};
+
+type GmailMessage = {
+  id: string;
+  message_id: string;
+  subject: string;
+  sender: string;
+  sender_email: string | null;
+  snippet: string;
+  received_at: string;
+  read: boolean;
+  label: string;
+};
+
+type ClickUpTask = {
+  id: string;
+  clickup_id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  list_name: string;
+  due_date: string | null;
+  url: string;
+  assignee: string;
 };
 
 /* ---------------- AGENT CONFIG ---------------- */
@@ -302,6 +333,11 @@ export default function MissionControl() {
   const [briefings, setBriefings] = useState<Briefing[]>([]);
   const [expandedBriefings, setExpandedBriefings] = useState<Set<string>>(new Set());
   const [stripeMetrics, setStripeMetrics] = useState<StripeMetrics | null>(null);
+  const [gmailMessages, setGmailMessages] = useState<GmailMessage[]>([]);
+  const [clickupTasks, setClickupTasks] = useState<ClickUpTask[]>([]);
+  const [showResolvedGlitches, setShowResolvedGlitches] = useState(false);
+  const [allGlitches, setAllGlitches] = useState<GlitchEntry[]>([]);
+  const [vidRushCollapsed, setVidRushCollapsed] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [chatMessages, setChatMessages] = useState<{ id: string; agent_name: string; sender: string; content: string; created_at: string; voice_played?: boolean }[]>([]);
@@ -585,6 +621,13 @@ export default function MissionControl() {
       .order("created_at", { ascending: false })
       .limit(10);
     if (data) setGlitches(data);
+    // Also fetch all for the toggle
+    const { data: all } = await supabase
+      .from("glitch_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (all) setAllGlitches(all);
   }
 
   async function fetchCrewTasks() {
@@ -625,6 +668,55 @@ export default function MissionControl() {
       .limit(1)
       .single();
     if (data) setStripeMetrics(data);
+  }
+
+  async function fetchGmail() {
+    const { data } = await supabase
+      .from("gmail_inbox")
+      .select("*")
+      .eq("archived", false)
+      .order("received_at", { ascending: false })
+      .limit(15);
+    if (data) setGmailMessages(data);
+  }
+
+  async function fetchClickUp() {
+    const { data } = await supabase
+      .from("clickup_tasks")
+      .select("*")
+      .not("status", "eq", "closed")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(20);
+    if (data) setClickupTasks(data);
+  }
+
+  async function fetchAllGlitches() {
+    const { data } = await supabase
+      .from("glitch_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setAllGlitches(data);
+  }
+
+  async function markGmailRead(msgId: string) {
+    const { error } = await supabase
+      .from("gmail_inbox")
+      .update({ read: true })
+      .eq("id", msgId);
+    if (!error) {
+      setGmailMessages(prev => prev.map(m => m.id === msgId ? { ...m, read: true } : m));
+    }
+  }
+
+  async function archiveGmailMsg(msgId: string) {
+    const { error } = await supabase
+      .from("gmail_inbox")
+      .update({ archived: true })
+      .eq("id", msgId);
+    if (!error) {
+      setGmailMessages(prev => prev.filter(m => m.id !== msgId));
+    }
   }
 
   async function approveCrewTask(taskId: string) {
@@ -700,6 +792,8 @@ export default function MissionControl() {
     fetchContentDrafts();
     fetchBriefings();
     fetchStripeMetrics();
+    fetchGmail();
+    fetchClickUp();
 
     const ch = supabase
       .channel("ceo-dashboard-realtime")
@@ -715,6 +809,8 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "content_drafts" }, () => fetchContentDrafts())
       .on("postgres_changes", { event: "*", schema: "public", table: "briefings" }, () => fetchBriefings())
       .on("postgres_changes", { event: "*", schema: "public", table: "stripe_metrics" }, () => fetchStripeMetrics())
+      .on("postgres_changes", { event: "*", schema: "public", table: "gmail_inbox" }, () => fetchGmail())
+      .on("postgres_changes", { event: "*", schema: "public", table: "clickup_tasks" }, () => fetchClickUp())
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
@@ -740,6 +836,7 @@ export default function MissionControl() {
       return {
         ...agent,
         online: lastEntry ? isOnline(lastEntry.created_at) : false,
+        idle: lastEntry ? isIdle(lastEntry.created_at) : false,
         lastAction: lastEntry?.content ?? "No activity recorded",
         lastSeen: lastEntry?.created_at,
         currentTask: task?.command ?? null,
@@ -878,14 +975,14 @@ export default function MissionControl() {
               <div className="hero-top">
                 <div className="hero-avatar-wrap">
                   <Image src={agent.avatar} alt={agent.name} width={140} height={140} className="crew-avatar-img" unoptimized />
-                  <div className={`avatar-status-dot hero-dot ${agent.online ? "online" : "offline"}`} />
+                  <div className={`avatar-status-dot hero-dot ${agent.online ? "online" : agent.idle ? "idle" : "offline"}`} />
                 </div>
                 <div className="hero-identity">
                   <h3 className="hero-name">{agent.name}</h3>
                   <span className="hero-role">{agent.role}</span>
-                  <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
-                    {agent.online ? <Wifi size={12} /> : <WifiOff size={12} />}
-                    <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+                  <div className={`status-indicator ${agent.online ? "online" : agent.idle ? "idle" : "offline"}`}>
+                    {agent.online ? <Wifi size={12} /> : agent.idle ? <Clock size={12} /> : <WifiOff size={12} />}
+                    <span>{agent.online ? "ONLINE" : agent.idle ? "IDLE" : "OFFLINE"}</span>
                   </div>
                   {agent.currentTask && (
                     <div className="hero-active-task">
@@ -1010,14 +1107,14 @@ export default function MissionControl() {
                     className="crew-avatar-img"
                     unoptimized
                   />
-                  <div className={`avatar-status-dot ${agent.online ? "online" : "offline"}`} />
+                  <div className={`avatar-status-dot ${agent.online ? "online" : agent.idle ? "idle" : "offline"}`} />
                 </div>
                 <div className="crew-id-col">
                   <span className="crew-name">{agent.name}</span>
                   <span className="crew-role">{agent.role}</span>
-                  <div className={`status-indicator ${agent.online ? "online" : "offline"}`}>
-                    {agent.online ? <Wifi size={10} /> : <WifiOff size={10} />}
-                    <span>{agent.online ? "ONLINE" : "OFFLINE"}</span>
+                  <div className={`status-indicator ${agent.online ? "online" : agent.idle ? "idle" : "offline"}`}>
+                    {agent.online ? <Wifi size={10} /> : agent.idle ? <Clock size={10} /> : <WifiOff size={10} />}
+                    <span>{agent.online ? "ONLINE" : agent.idle ? "IDLE" : "OFFLINE"}</span>
                   </div>
                 </div>
               </div>
@@ -1181,52 +1278,11 @@ export default function MissionControl() {
 
       {/* ======= TWO-COLUMN LAYOUT ======= */}
       <div className="two-col-layout">
-        {/* ======= SECTION 4 — CONTENT PIPELINE ======= */}
+        {/* ======= LEFT COLUMN — Content Pipeline (Drafts first, VidRush collapsed) ======= */}
         <section className="dashboard-section">
           <h2 className="section-heading">CONTENT PIPELINE</h2>
 
-          {/* Vid Rush Queue */}
-          <div className="pipeline-sub">
-            <div className="sub-header">
-              <Play size={14} />
-              <span>VID RUSH QUEUE</span>
-              <span className="sub-count">{vidRush.length}</span>
-            </div>
-            {vidRush.length > 0 ? (
-              vidRush.map((v) => (
-                <div key={v.id} className="pipeline-item">
-                  <span className="pi-topic">{v.topic}</span>
-                  <span className={`pi-status ${v.status?.toLowerCase().replace(/\s/g, "-")}`}>{v.status}</span>
-                  <span className="pi-time">{timeAgo(v.created_at)}</span>
-                </div>
-              ))
-            ) : (
-              <div className="pipeline-empty">No items in vid rush queue</div>
-            )}
-          </div>
-
-          {/* Content Transmissions */}
-          <div className="pipeline-sub">
-            <div className="sub-header">
-              <FileText size={14} />
-              <span>CONTENT TRANSMISSIONS</span>
-              <span className="sub-count">{contentTransmissions.length}</span>
-            </div>
-            {contentTransmissions.length > 0 ? (
-              contentTransmissions.map((ct) => (
-                <div key={ct.id} className="pipeline-item">
-                  <span className="pi-topic">{ct.intent_tag}</span>
-                  <span className={`pi-status ${ct.status?.toLowerCase().replace(/\s/g, "-")}`}>{ct.status}</span>
-                  <span className="pi-source">{ct.source}</span>
-                  <span className="pi-time">{timeAgo(ct.created_at)}</span>
-                </div>
-              ))
-            ) : (
-              <div className="pipeline-empty">No content transmissions</div>
-            )}
-          </div>
-
-          {/* Content Drafts from Crew */}
+          {/* Content Drafts — PRIMARY ACTION ZONE */}
           <div className="pipeline-sub">
             <div className="sub-header">
               <PenTool size={14} />
@@ -1257,11 +1313,131 @@ export default function MissionControl() {
               <div className="pipeline-empty">No drafts pending review</div>
             )}
           </div>
+
+          {/* Content Transmissions */}
+          <div className="pipeline-sub">
+            <div className="sub-header">
+              <FileText size={14} />
+              <span>CONTENT TRANSMISSIONS</span>
+              <span className="sub-count">{contentTransmissions.length}</span>
+            </div>
+            {contentTransmissions.length > 0 ? (
+              contentTransmissions.map((ct) => (
+                <div key={ct.id} className="pipeline-item">
+                  <span className="pi-topic">{ct.intent_tag}</span>
+                  <span className={`pi-status ${ct.status?.toLowerCase().replace(/\s/g, "-")}`}>{ct.status}</span>
+                  <span className="pi-source">{ct.source}</span>
+                  <span className="pi-time">{timeAgo(ct.created_at)}</span>
+                </div>
+              ))
+            ) : (
+              <div className="pipeline-empty">No content transmissions</div>
+            )}
+          </div>
+
+          {/* Vid Rush Queue — COLLAPSED by default */}
+          <div className="pipeline-sub vidrush-collapsible">
+            <div className="sub-header sub-header-toggle" onClick={() => setVidRushCollapsed(!vidRushCollapsed)}>
+              <Play size={14} />
+              <span>VID RUSH</span>
+              <span className="sub-count">{vidRush.length}</span>
+              {vidRushCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            </div>
+            {!vidRushCollapsed && (
+              vidRush.length > 0 ? (
+                vidRush.map((v) => (
+                  <div key={v.id} className="pipeline-item">
+                    <span className="pi-topic">{v.topic}</span>
+                    <span className={`pi-status ${v.status?.toLowerCase().replace(/\s/g, "-")}`}>{v.status}</span>
+                    <span className="pi-time">{timeAgo(v.created_at)}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="pipeline-empty">No items in vid rush queue</div>
+              )
+            )}
+          </div>
         </section>
 
         {/* ======= RIGHT COLUMN ======= */}
         <div className="right-stack">
-          {/* ======= SECTION 5 — RECENT REVENUE ======= */}
+
+          {/* ======= SECTION — MAIL ======= */}
+          <section className="dashboard-section">
+            <div className="section-header-row">
+              <h2 className="section-heading">MAIL</h2>
+              <Mail size={16} className="section-icon" />
+            </div>
+            <div className="card gmail-card">
+              {gmailMessages.length > 0 ? (
+                gmailMessages.slice(0, 8).map((m) => (
+                  <div key={m.id} className={`gmail-row ${m.read ? "gmail-read" : "gmail-unread"}`}>
+                    <div className="gmail-dot-col">
+                      {!m.read && <div className="gmail-unread-dot" />}
+                    </div>
+                    <div className="gmail-body" onClick={() => markGmailRead(m.id)}>
+                      <div className="gmail-top-row">
+                        <span className="gmail-sender">{m.sender}</span>
+                        <span className="gmail-time">{timeAgo(m.received_at)}</span>
+                      </div>
+                      <span className="gmail-subject">{m.subject}</span>
+                      <span className="gmail-snippet">{m.snippet?.length > 90 ? m.snippet.slice(0, 90) + "..." : m.snippet}</span>
+                    </div>
+                    <button className="gmail-archive-btn" title="Archive" onClick={() => archiveGmailMsg(m.id)}>
+                      <Archive size={12} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="table-empty">
+                  <Mail size={24} />
+                  <span>NO MAIL — INBOX ZERO</span>
+                </div>
+              )}
+              {gmailMessages.length > 0 && (
+                <div className="gmail-footer">
+                  <span className="gmail-unread-count">{gmailMessages.filter(m => !m.read).length} unread</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ======= SECTION — CLICKUP TASKS ======= */}
+          <section className="dashboard-section">
+            <div className="section-header-row">
+              <h2 className="section-heading">CLICKUP SPRINT</h2>
+              <ListTodo size={16} className="section-icon" />
+            </div>
+            <div className="card clickup-card">
+              {clickupTasks.length > 0 ? (
+                clickupTasks.slice(0, 10).map((t) => (
+                  <div key={t.id} className="clickup-row">
+                    <div className={`clickup-priority-dot ${t.priority?.toLowerCase()}`} />
+                    <div className="clickup-body">
+                      <span className="clickup-name">{t.name}</span>
+                      <div className="clickup-meta">
+                        <span className={`clickup-status-badge ${t.status?.toLowerCase().replace(/\s/g, "-")}`}>{t.status}</span>
+                        {t.list_name && <span className="clickup-list">{t.list_name}</span>}
+                        {t.due_date && <span className="clickup-due">{new Date(t.due_date).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                    {t.url && (
+                      <a href={t.url} target="_blank" rel="noopener noreferrer" className="clickup-link-btn" title="Open in ClickUp">
+                        <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="table-empty">
+                  <ListTodo size={24} />
+                  <span>NO TASKS SYNCED YET</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ======= SECTION — RECENT REVENUE ======= */}
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">RECENT REVENUE</h2>
@@ -1296,7 +1472,7 @@ export default function MissionControl() {
             </div>
           </section>
 
-          {/* ======= SECTION 5B — STRIPE METRICS ======= */}
+          {/* ======= STRIPE METRICS ======= */}
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">STRIPE METRICS</h2>
@@ -1346,35 +1522,47 @@ export default function MissionControl() {
             </div>
           </section>
 
-          {/* ======= SECTION 6 — GLITCH LOG ======= */}
+          {/* ======= GLITCH LOG (with filter toggle) ======= */}
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">GLITCH LOG</h2>
-              <AlertTriangle size={16} className="section-icon" />
+              <div className="glitch-controls">
+                <button className={`glitch-filter-btn ${showResolvedGlitches ? "active" : ""}`} onClick={() => setShowResolvedGlitches(!showResolvedGlitches)} title={showResolvedGlitches ? "Show unresolved only" : "Show all glitches"}>
+                  <Filter size={12} />
+                  <span>{showResolvedGlitches ? "ALL" : "OPEN"}</span>
+                </button>
+                <AlertTriangle size={16} className="section-icon" />
+              </div>
             </div>
             <div className="card glitch-list-card">
-              {glitches.length > 0 ? (
-                glitches.map((g) => (
-                  <div key={g.id} className="glitch-row">
-                    <div className={`glitch-severity-dot ${g.severity?.toLowerCase()}`} />
-                    <div className="glitch-body">
-                      <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "..." : g.description}</span>
-                      <div className="glitch-meta">
-                        <span className={`glitch-sev-label ${g.severity?.toLowerCase()}`}>{g.severity}</span>
-                        <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "---"}</span>
+              {(() => {
+                const displayGlitches = showResolvedGlitches ? allGlitches : glitches;
+                return displayGlitches.length > 0 ? (
+                  displayGlitches.map((g) => (
+                    <div key={g.id} className={`glitch-row ${g.resolved ? "glitch-resolved" : ""}`}>
+                      <div className={`glitch-severity-dot ${g.severity?.toLowerCase()}`} />
+                      <div className="glitch-body">
+                        <span className="glitch-msg">{g.description?.length > 100 ? g.description.slice(0, 100) + "..." : g.description}</span>
+                        <div className="glitch-meta">
+                          <span className={`glitch-sev-label ${g.severity?.toLowerCase()}`}>{g.severity}</span>
+                          {g.resolved && <span className="glitch-resolved-badge">RESOLVED</span>}
+                          <span className="glitch-time">{g.detected_at ? timeAgo(g.detected_at) : "---"}</span>
+                        </div>
                       </div>
+                      {!g.resolved && (
+                        <button className="glitch-resolve-btn" title="Resolve glitch" onClick={() => dismissGlitch(g.id)}>
+                          <CheckCircle size={14} />
+                        </button>
+                      )}
                     </div>
-                    <button className="glitch-resolve-btn" title="Resolve glitch" onClick={() => dismissGlitch(g.id)}>
-                      <CheckCircle size={14} />
-                    </button>
+                  ))
+                ) : (
+                  <div className="table-empty">
+                    <Activity size={24} />
+                    <span>NO ANOMALIES — FREQUENCY STABLE</span>
                   </div>
-                ))
-              ) : (
-                <div className="table-empty">
-                  <Activity size={24} />
-                  <span>NO ANOMALIES — FREQUENCY STABLE</span>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </section>
         </div>
@@ -1616,6 +1804,7 @@ export default function MissionControl() {
         }
         .avatar-status-dot.online { background: #1D9E75; box-shadow: 0 0 8px rgba(29, 158, 117, 0.5); }
         .avatar-status-dot.offline { background: #555; }
+        .avatar-status-dot.idle { background: #D4A017; box-shadow: 0 0 8px rgba(212, 160, 23, 0.5); }
 
         .crew-id-col {
           display: flex;
@@ -2139,6 +2328,11 @@ export default function MissionControl() {
           color: var(--color-text-muted);
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .status-indicator.idle {
+          color: #D4A017;
+          background: rgba(212, 160, 23, 0.1);
+          border: 1px solid rgba(212, 160, 23, 0.2);
         }
 
         .crew-role {
@@ -2858,6 +3052,14 @@ export default function MissionControl() {
           background: rgba(0, 0, 0, 0.04) !important;
           border-color: rgba(0, 0, 0, 0.08) !important;
         }
+        :global([data-theme="light"]) .status-indicator.idle {
+          color: #B8860B;
+          background: rgba(212, 160, 23, 0.08) !important;
+          border-color: rgba(212, 160, 23, 0.15) !important;
+        }
+        :global([data-theme="light"]) .avatar-status-dot.idle {
+          background: #D4A017 !important;
+        }
         :global([data-theme="light"]) .avatar-status-dot {
           border-color: #fff !important;
         }
@@ -2924,7 +3126,105 @@ export default function MissionControl() {
             font-size: 10px;
           }
         }
-      `}</style>
+      
+
+        /* -- GMAIL SECTION -- */
+        .gmail-card { display: flex; flex-direction: column; gap: 0; }
+        .gmail-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .gmail-row:hover { background: rgba(201, 168, 76, 0.04); }
+        .gmail-row:last-child { border-bottom: none; }
+        .gmail-unread { background: rgba(201, 168, 76, 0.03); }
+        .gmail-read { opacity: 0.65; }
+        .gmail-dot-col { width: 8px; flex-shrink: 0; padding-top: 6px; }
+        .gmail-unread-dot { width: 6px; height: 6px; border-radius: 50%; background: #C9A84C; }
+        .gmail-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .gmail-top-row { display: flex; justify-content: space-between; align-items: center; }
+        .gmail-sender { font-size: 11px; font-weight: 600; color: var(--color-text-primary); }
+        .gmail-time { font-size: 10px; color: var(--color-text-muted); }
+        .gmail-subject { font-size: 12px; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gmail-snippet { font-size: 11px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gmail-archive-btn {
+          background: none; border: none; color: var(--color-text-muted); cursor: pointer;
+          padding: 4px; border-radius: 4px; opacity: 0; transition: opacity 0.15s;
+        }
+        .gmail-row:hover .gmail-archive-btn { opacity: 1; }
+        .gmail-archive-btn:hover { color: #C9A84C; background: rgba(201, 168, 76, 0.1); }
+        .gmail-footer { padding: 8px 12px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06); }
+        .gmail-unread-count { font-size: 11px; color: #C9A84C; font-weight: 600; letter-spacing: 0.5px; }
+
+        /* -- CLICKUP SECTION -- */
+        .clickup-card { display: flex; flex-direction: column; gap: 0; }
+        .clickup-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .clickup-row:last-child { border-bottom: none; }
+        .clickup-priority-dot {
+          width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0;
+        }
+        .clickup-priority-dot.urgent { background: #e74c3c; }
+        .clickup-priority-dot.high { background: #e67e22; }
+        .clickup-priority-dot.normal { background: #3498db; }
+        .clickup-priority-dot.low { background: #95a5a6; }
+        .clickup-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+        .clickup-name { font-size: 12px; color: var(--color-text-primary); font-weight: 500; }
+        .clickup-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .clickup-status-badge {
+          font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+          padding: 2px 6px; border-radius: 4px;
+          background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+        }
+        .clickup-status-badge.in-progress { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+        .clickup-status-badge.to-do { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
+        .clickup-status-badge.complete { background: rgba(29, 158, 117, 0.15); color: #1D9E75; }
+        .clickup-list { font-size: 10px; color: var(--color-text-muted); }
+        .clickup-due { font-size: 10px; color: #e67e22; }
+        .clickup-link-btn {
+          background: none; border: none; color: var(--color-text-muted); cursor: pointer;
+          padding: 4px; border-radius: 4px; transition: color 0.15s;
+        }
+        .clickup-link-btn:hover { color: #C9A84C; }
+
+        /* -- VIDRUSH COLLAPSIBLE -- */
+        .sub-header-toggle { cursor: pointer; user-select: none; }
+        .sub-header-toggle:hover { background: rgba(201, 168, 76, 0.06); }
+
+        /* -- GLITCH FILTER -- */
+        .glitch-controls { display: flex; align-items: center; gap: 8px; }
+        .glitch-filter-btn {
+          display: flex; align-items: center; gap: 4px;
+          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+          color: var(--color-text-muted); font-size: 9px; font-weight: 700;
+          letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+          transition: all 0.15s;
+        }
+        .glitch-filter-btn:hover { border-color: rgba(201, 168, 76, 0.3); color: #C9A84C; }
+        .glitch-filter-btn.active { background: rgba(201, 168, 76, 0.1); border-color: rgba(201, 168, 76, 0.3); color: #C9A84C; }
+        .glitch-resolved { opacity: 0.5; }
+        .glitch-resolved-badge {
+          font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+          padding: 1px 5px; border-radius: 3px;
+          background: rgba(29, 158, 117, 0.15); color: #1D9E75;
+        }
+
+        /* -- LIGHT THEME ADDITIONS -- */
+        :global([data-theme="light"]) .gmail-row { border-bottom-color: rgba(0,0,0,0.06); }
+        :global([data-theme="light"]) .gmail-unread { background: rgba(201, 168, 76, 0.04); }
+        :global([data-theme="light"]) .gmail-read { opacity: 0.55; }
+        :global([data-theme="light"]) .clickup-row { border-bottom-color: rgba(0,0,0,0.06); }
+        :global([data-theme="light"]) .glitch-filter-btn { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
+`}</style>
     </div>
   );
 }
