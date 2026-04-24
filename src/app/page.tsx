@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import AestheticPerformancePanel from "@/components/home/AestheticPerformancePanel";
 import {
   Activity,
   Terminal,
@@ -929,6 +930,9 @@ export default function MissionControl() {
           </div>
         </div>
       </header>
+
+      {/* ======= SECTION 1.5 — AESTHETIC PERFORMANCE (30-video A/B/C test, first outcome tile) ======= */}
+      <AestheticPerformancePanel />
 
       {/* ======= SECTION 2 — MAVEN CREW STATUS ======= */}
       <section className="dashboard-section">

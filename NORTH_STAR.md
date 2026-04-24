@@ -46,9 +46,11 @@ Current `/finance` and `/content` pages should be audited against this rule. If 
 ---
 
 ## The Current Highest-Leverage Action (UPDATE EVERY SESSION)
-**Action:** **Reconnect Ace Richie YT → sovereign-landing in 7 days.** Canonical plan lives in `C:\Users\richi\Sovereign-Sentinel-Bot\NORTH_STAR.md`. MC's job this week is to surface metric #2 (landing visitors) on the dashboard the moment `@vercel/analytics` starts reporting data. If `/finance` or `/content` doesn't show a landing-visitors widget with week-over-week delta, that widget is the one MC build task that is revenue-connected this week.
+**Action:** **Ship videos against the new dual-rotation pipeline and watch the Aesthetic Performance tile fill.** Bot-side S113+ is live (commit `74da963`). MC-side measurement surface is now live — the **Aesthetic Performance tile** is mounted above-the-fold on the home dashboard (MC S114, 2026-04-24). Tile reads `niche_cooldown` (aesthetic_style ≥ 2026-04-24) ⨝ `youtube_analytics` via `niche_cooldown.youtube_video_id` (new column added this session). Cells currently all "—" because (a) no S113+ videos have shipped yet and (b) the bot hasn't wired the `youtube_video_id` write-back. Both are tracked in the Bot cross-sync log in `MISSION-CONTROL-MASTER-REFERENCE.md`.
 
-**Last updated:** 2026-04-10 (Session 46 — first real funnel audit done, worst metric is sovereign-landing measurement layer, MC's revenue-connected task is the landing-visitors widget)
+**The canonical 30-video plan lives in `C:\Users\richi\Sovereign-Sentinel-Bot\NORTH_STAR.md`** — see the "First Real Business Goal" section. MC's role for this goal is now complete structurally; remaining MC work is passive (tile lights up as data flows in).
+
+**Last updated:** 2026-04-24 (Session 114 — Aesthetic Performance tile shipped, `niche_cooldown.youtube_video_id` column added, first outcome-based KPI tile on MC)
 
 ---
 
