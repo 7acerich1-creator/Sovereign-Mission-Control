@@ -121,13 +121,15 @@ type CrewTask = {
 };
 
 type ContentDraft = {
+  // S113.2: Repurposed to surface content_engine_queue — actual distribution, not proposals.
   id: string;
-  agent_name: string;
-  draft_type: string;
-  title: string;
-  body: string;
-  platform: string | null;
+  brand: string | null;
+  niche: string | null;
+  universal_text: string | null;
   status: string;
+  channels_hit: number | null;
+  channels_total: number | null;
+  posted_at: string | null;
   created_at: string;
 };
 
@@ -642,14 +644,15 @@ export default function MissionControl() {
   }
 
   async function fetchContentDrafts() {
-    // S113: Activity feed — show latest agent output across ALL statuses.
-    // Approval gate retired; downstream publish is wired to content_engine_queue.
+    // S113.2: Show what actually went out. Source = content_engine_queue,
+    // filter to posted or partial (partial = at least one channel succeeded).
     const { data } = await supabase
-      .from("content_drafts")
+      .from("content_engine_queue")
       .select("*")
-      .order("created_at", { ascending: false })
+      .in("status", ["posted", "partial"])
+      .order("posted_at", { ascending: false, nullsFirst: false })
       .limit(10);
-    if (data) setContentDrafts(data);
+    if (data) setContentDrafts(data as any);
   }
 
   async function fetchBriefings() {
@@ -672,14 +675,28 @@ export default function MissionControl() {
     if (data) setStripeMetrics(data);
   }
 
+  // S113.2: filter mail widget to Sovereign Synthesis operations — drop personal/school/social noise.
+  const GMAIL_NOISE_DOMAINS = [
+    "newsbreakpost.com",
+    "ectorcountyisd.org",
+    "peachjar.com",
+    "patreon.com",
+    "petsmart.com",
+    "googlepixel-noreply@google.com",
+  ];
   async function fetchGmail() {
     const { data } = await supabase
       .from("gmail_inbox")
       .select("*")
       .eq("archived", false)
       .order("received_at", { ascending: false })
-      .limit(15);
-    if (data) setGmailMessages(data);
+      .limit(30);
+    if (!data) return;
+    const filtered = data.filter((m: any) => {
+      const addr = (m.sender_email || '').toLowerCase();
+      return !GMAIL_NOISE_DOMAINS.some(d => addr.includes(d.toLowerCase()));
+    });
+    setGmailMessages(filtered.slice(0, 15));
   }
 
   async function fetchClickUp() {
@@ -808,7 +825,7 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
       .on("postgres_changes", { event: "*", schema: "public", table: "glitch_log" }, () => fetchGlitches())
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchCrewTasks())
-      .on("postgres_changes", { event: "*", schema: "public", table: "content_drafts" }, () => fetchContentDrafts())
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_engine_queue" }, () => fetchContentDrafts())
       .on("postgres_changes", { event: "*", schema: "public", table: "briefings" }, () => fetchBriefings())
       .on("postgres_changes", { event: "*", schema: "public", table: "stripe_metrics" }, () => fetchStripeMetrics())
       .on("postgres_changes", { event: "*", schema: "public", table: "gmail_inbox" }, () => fetchGmail())
@@ -1283,7 +1300,7 @@ export default function MissionControl() {
         <section className="dashboard-section">
           <h2 className="section-heading">CONTENT PIPELINE</h2>
 
-          {/* Content Activity — READ-ONLY FEED (S113: approval gate retired) */}
+          {/* Content Activity — DISTRIBUTION FEED (S113.2: source = content_engine_queue) */}
           <div className="pipeline-sub">
             <div className="sub-header">
               <PenTool size={14} />
@@ -1294,17 +1311,18 @@ export default function MissionControl() {
               contentDrafts.map((d) => (
                 <div key={d.id} className="draft-item">
                   <div className="draft-top">
-                    <span className="draft-agent">{d.agent_name}</span>
-                    <span className={`pi-status ${d.draft_type}`}>{d.draft_type}</span>
-                    <span className={`pi-status status-${(d.status || 'unknown').toLowerCase().replace(/_/g, '-')}`}>{d.status}</span>
-                    <span className="pi-time">{timeAgo(d.created_at)}</span>
+                    <span className="draft-agent">{(d.brand || 'unknown').replace(/_/g, ' ').toUpperCase()}</span>
+                    <span className={`pi-status ${d.niche}`}>{(d.niche || '').replace(/_/g, ' ')}</span>
+                    <span className={`pi-status status-${(d.status || 'unknown').toLowerCase()}`}>
+                      {d.status === 'posted' ? `POSTED ${d.channels_hit}/${d.channels_total}` : `PARTIAL ${d.channels_hit}/${d.channels_total}`}
+                    </span>
+                    <span className="pi-time">{timeAgo(d.posted_at || d.created_at)}</span>
                   </div>
-                  <span className="draft-title">{d.title}</span>
-                  <span className="draft-preview">{d.body?.length > 120 ? d.body.slice(0, 120) + "..." : d.body}</span>
+                  <span className="draft-preview">{d.universal_text && d.universal_text.length > 160 ? d.universal_text.slice(0, 160) + "..." : (d.universal_text || '')}</span>
                 </div>
               ))
             ) : (
-              <div className="pipeline-empty">No recent agent output</div>
+              <div className="pipeline-empty">No recent distributions</div>
             )}
           </div>
 
@@ -1360,7 +1378,16 @@ export default function MissionControl() {
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">MAIL</h2>
-              <Mail size={16} className="section-icon" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => fetchGmail()}
+                  title="Refresh mail"
+                  style={{ background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 8px', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}
+                >
+                  REFRESH
+                </button>
+                <Mail size={16} className="section-icon" />
+              </div>
             </div>
             <div className="card gmail-card">
               {gmailMessages.length > 0 ? (
