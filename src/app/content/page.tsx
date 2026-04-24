@@ -14,9 +14,11 @@ import {
   Clock,
   ShieldAlert,
   BarChart3,
+  Mail,
 } from 'lucide-react';
 import CtaAuditPanel from '@/components/content/CtaAuditPanel';
 import LandingAnalyticsPanel from '@/components/content/LandingAnalyticsPanel';
+import EmailTrackingPanel from '@/components/content/EmailTrackingPanel';
 
 type VideoItem = {
   id: string;
@@ -55,7 +57,7 @@ type ChannelFilter = typeof CHANNELS[number];
 const VIDEO_TYPES = ["All", "video", "short"] as const;
 type TypeFilter = typeof VIDEO_TYPES[number];
 
-type TabKey = 'performance' | 'cta_audit' | 'landing';
+type TabKey = 'performance' | 'cta_audit' | 'landing' | 'email';
 
 export default function ContentIntel() {
   const [activeTab, setActiveTab] = useState<TabKey>('performance');
@@ -222,6 +224,13 @@ export default function ContentIntel() {
           <BarChart3 size={14} />
           LANDING
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'email' ? 'active' : ''}`}
+          onClick={() => setActiveTab('email')}
+        >
+          <Mail size={14} />
+          EMAIL
+        </button>
       </nav>
 
       {/* PANEL: PERFORMANCE */}
@@ -385,6 +394,9 @@ export default function ContentIntel() {
 
       {/* PANEL: LANDING ANALYTICS */}
       {activeTab === 'landing' && <LandingAnalyticsPanel />}
+
+      {/* PANEL: EMAIL TRACKING */}
+      {activeTab === 'email' && <EmailTrackingPanel />}
 
       <style jsx>{`
         .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
