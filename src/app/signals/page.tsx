@@ -25,11 +25,13 @@ type CommentRow = {
   alerted_at: string | null;
 };
 
+// S113: 'Ace Richie' retired. Personal brand is now 'Sovereign Synthesis'.
+// DB enum key (brand='ace_richie') stays until a coordinated schema rename.
 const BRAND_META: Record<CommentRow['brand'], { label: string; color: string; bg: string }> = {
   ace_richie: {
-    label: 'ACE RICHIE',
-    color: '#4facfe',
-    bg: 'rgba(79,172,254,0.12)',
+    label: 'SOVEREIGN SYNTHESIS',
+    color: '#C9A84C',
+    bg: 'rgba(201,168,76,0.12)',
   },
   containment_field: {
     label: 'CONTAINMENT FIELD',
@@ -160,7 +162,7 @@ export default function SignalsPage() {
         <div className="s-card">
           <div className="s-dot" style={{ background: BRAND_META.ace_richie.color }} />
           <div className="s-body">
-            <span className="s-label">ACE RICHIE</span>
+            <span className="s-label">SOVEREIGN SYNTHESIS</span>
             <span className="s-value">{counts.ace.toLocaleString()}</span>
           </div>
         </div>
@@ -200,7 +202,7 @@ export default function SignalsPage() {
             onClick={() => setBrandFilter('ace_richie')}
             style={{ '--tab-color': BRAND_META.ace_richie.color } as any}
           >
-            ACE RICHIE ({counts.ace})
+            SOVEREIGN SYNTHESIS ({counts.ace})
           </button>
           <button
             className={`b-tab ${brandFilter === 'containment_field' ? 'active' : ''}`}

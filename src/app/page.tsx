@@ -631,20 +631,22 @@ export default function MissionControl() {
   }
 
   async function fetchCrewTasks() {
+    // S113: Only "To Do". Hitting START flips to In Progress → hides from board.
     const { data } = await supabase
       .from("tasks")
       .select("*")
-      .in("status", ["To Do", "In Progress"])
+      .eq("status", "To Do")
       .order("created_at", { ascending: false })
       .limit(20);
     if (data) setCrewTasks(data);
   }
 
   async function fetchContentDrafts() {
+    // S113: Activity feed — show latest agent output across ALL statuses.
+    // Approval gate retired; downstream publish is wired to content_engine_queue.
     const { data } = await supabase
       .from("content_drafts")
       .select("*")
-      .in("status", ["pending_review", "revision_requested"])
       .order("created_at", { ascending: false })
       .limit(10);
     if (data) setContentDrafts(data);
@@ -793,7 +795,7 @@ export default function MissionControl() {
     fetchBriefings();
     fetchStripeMetrics();
     fetchGmail();
-    fetchClickUp();
+    // S113: ClickUp widget removed from home — lives on /productivity + /tasks.
 
     const ch = supabase
       .channel("ceo-dashboard-realtime")
@@ -810,7 +812,6 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "briefings" }, () => fetchBriefings())
       .on("postgres_changes", { event: "*", schema: "public", table: "stripe_metrics" }, () => fetchStripeMetrics())
       .on("postgres_changes", { event: "*", schema: "public", table: "gmail_inbox" }, () => fetchGmail())
-      .on("postgres_changes", { event: "*", schema: "public", table: "clickup_tasks" }, () => fetchClickUp())
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
@@ -1282,11 +1283,11 @@ export default function MissionControl() {
         <section className="dashboard-section">
           <h2 className="section-heading">CONTENT PIPELINE</h2>
 
-          {/* Content Drafts — PRIMARY ACTION ZONE */}
+          {/* Content Activity — READ-ONLY FEED (S113: approval gate retired) */}
           <div className="pipeline-sub">
             <div className="sub-header">
               <PenTool size={14} />
-              <span>CONTENT DRAFTS</span>
+              <span>CONTENT ACTIVITY</span>
               <span className="sub-count">{contentDrafts.length}</span>
             </div>
             {contentDrafts.length > 0 ? (
@@ -1295,22 +1296,15 @@ export default function MissionControl() {
                   <div className="draft-top">
                     <span className="draft-agent">{d.agent_name}</span>
                     <span className={`pi-status ${d.draft_type}`}>{d.draft_type}</span>
+                    <span className={`pi-status status-${(d.status || 'unknown').toLowerCase().replace(/_/g, '-')}`}>{d.status}</span>
                     <span className="pi-time">{timeAgo(d.created_at)}</span>
                   </div>
                   <span className="draft-title">{d.title}</span>
                   <span className="draft-preview">{d.body?.length > 120 ? d.body.slice(0, 120) + "..." : d.body}</span>
-                  <div className="draft-actions">
-                    <button className="task-action-btn activate-btn" title="Approve — sends to bot publish queue" onClick={() => { approveDraft(d.id); }}>
-                      <CheckCircle size={12} /> <span>APPROVE</span>
-                    </button>
-                    <button className="task-action-btn pause-btn" title="Reject — bot will revise or discard" onClick={() => { rejectDraft(d.id); }}>
-                      <X size={12} /> <span>REJECT</span>
-                    </button>
-                  </div>
                 </div>
               ))
             ) : (
-              <div className="pipeline-empty">No drafts pending review</div>
+              <div className="pipeline-empty">No recent agent output</div>
             )}
           </div>
 
@@ -1402,40 +1396,7 @@ export default function MissionControl() {
             </div>
           </section>
 
-          {/* ======= SECTION — CLICKUP TASKS ======= */}
-          <section className="dashboard-section">
-            <div className="section-header-row">
-              <h2 className="section-heading">CLICKUP SPRINT</h2>
-              <ListTodo size={16} className="section-icon" />
-            </div>
-            <div className="card clickup-card">
-              {clickupTasks.length > 0 ? (
-                clickupTasks.slice(0, 10).map((t) => (
-                  <div key={t.id} className="clickup-row">
-                    <div className={`clickup-priority-dot ${t.priority?.toLowerCase()}`} />
-                    <div className="clickup-body">
-                      <span className="clickup-name">{t.name}</span>
-                      <div className="clickup-meta">
-                        <span className={`clickup-status-badge ${t.status?.toLowerCase().replace(/\s/g, "-")}`}>{t.status}</span>
-                        {t.list_name && <span className="clickup-list">{t.list_name}</span>}
-                        {t.due_date && <span className="clickup-due">{new Date(t.due_date).toLocaleDateString()}</span>}
-                      </div>
-                    </div>
-                    {t.url && (
-                      <a href={t.url} target="_blank" rel="noopener noreferrer" className="clickup-link-btn" title="Open in ClickUp">
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="table-empty">
-                  <ListTodo size={24} />
-                  <span>NO TASKS SYNCED YET</span>
-                </div>
-              )}
-            </div>
-          </section>
+          {/* S113: ClickUp widget removed — lives on /productivity + /tasks. */}
 
           {/* ======= SECTION — RECENT REVENUE ======= */}
           <section className="dashboard-section">

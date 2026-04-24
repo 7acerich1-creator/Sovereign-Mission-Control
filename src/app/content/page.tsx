@@ -247,7 +247,7 @@ export default function ContentIntel() {
                     className={`pill ${channel === c ? 'active' : ''}`}
                     onClick={() => setChannel(c)}
                   >
-                    {c === "All" ? "ALL" : c === "Ace Richie" ? "ACE RICHIE" : "TCF"}
+                    {c === "All" ? "ALL" : c === "Ace Richie" ? "SOVEREIGN SYNTHESIS" : "TCF"}
                   </button>
                 ))}
               </div>
@@ -350,7 +350,7 @@ export default function ContentIntel() {
                         <div className="type-badge">SHORT</div>
                       )}
                       <div className="channel-tag">
-                        {item.channel_name === 'Ace Richie' ? 'AR' : 'TCF'}
+                        {item.channel_name === 'Ace Richie' ? 'SS' : 'TCF'}
                       </div>
                     </div>
                     <div className="content-body">

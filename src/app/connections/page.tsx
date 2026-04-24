@@ -20,7 +20,6 @@ import {
   Mail,
   Globe,
   Zap,
-  XCircle,
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -115,7 +114,7 @@ export default function Connections() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pulse, setPulse] = useState<HealthPulse>({ lastPipelineRun: null, lastYTFetch: null, dispatchCount24h: 0, draftsCount7d: 0 });
   const [loading, setLoading] = useState(true);
-  const [showMakeBanner, setShowMakeBanner] = useState(true);
+  // S113: make.com banner retired — see note below.
 
   useEffect(() => {
     fetchAll();
@@ -281,18 +280,7 @@ export default function Connections() {
         })}
       </section>
 
-      {/* MAKE.COM CANCELLATION REMINDER */}
-      {showMakeBanner && (
-        <div className="sh-make-banner">
-          <div className="sh-make-content">
-            <AlertTriangle size={14} />
-            <span><strong>ACTION REQUIRED:</strong> Cancel your Make.com subscription — all scenarios deprecated and replaced with native bot pipelines.</span>
-          </div>
-          <button className="sh-make-dismiss" onClick={() => setShowMakeBanner(false)}>
-            <XCircle size={14} />
-          </button>
-        </div>
-      )}
+      {/* S113: Make.com banner purged. Subscription is Ace's to cancel manually. */}
 
       {connections.length === 0 && !loading && (
         <div className="sh-empty">
