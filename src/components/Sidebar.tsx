@@ -113,7 +113,7 @@ export default function Sidebar() {
           <div className="logo-icon">SC</div>
           <div className="logo-text">
             <span className="logo-title">MISSION CONTROL</span>
-            <span className="logo-version">v2.0 PRE-RELEASE</span>
+            <span className="logo-version">OPERATIONAL</span>
           </div>
         </div>
       </div>
