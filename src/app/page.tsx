@@ -633,24 +633,27 @@ export default function MissionControl() {
   }
 
   async function fetchCrewTasks() {
-    // S113: Only "To Do". Hitting START flips to In Progress → hides from board.
+    // S113.3: Human-type only. AI proposals get hidden from home — too noisy and they re-seed.
     const { data } = await supabase
       .from("tasks")
       .select("*")
       .eq("status", "To Do")
+      .eq("type", "human")
       .order("created_at", { ascending: false })
       .limit(20);
     if (data) setCrewTasks(data);
   }
 
   async function fetchContentDrafts() {
-    // S113.2: Show what actually went out. Source = content_engine_queue,
-    // filter to posted or partial (partial = at least one channel succeeded).
+    // S113.3: Posted only, last 72h. Partials = failed attempts, hide.
+    // Empty state tells the truth when the pipeline is jammed.
+    const threeDaysAgo = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
     const { data } = await supabase
       .from("content_engine_queue")
       .select("*")
-      .in("status", ["posted", "partial"])
-      .order("posted_at", { ascending: false, nullsFirst: false })
+      .eq("status", "posted")
+      .gte("posted_at", threeDaysAgo)
+      .order("posted_at", { ascending: false })
       .limit(10);
     if (data) setContentDrafts(data as any);
   }
@@ -675,14 +678,25 @@ export default function MissionControl() {
     if (data) setStripeMetrics(data);
   }
 
-  // S113.2: filter mail widget to Sovereign Synthesis operations — drop personal/school/social noise.
-  const GMAIL_NOISE_DOMAINS = [
-    "newsbreakpost.com",
-    "ectorcountyisd.org",
-    "peachjar.com",
-    "patreon.com",
-    "petsmart.com",
-    "googlepixel-noreply@google.com",
+  // S113.3: Allowlist only — Sovereign Synthesis operational senders.
+  // Everything not matching gets hidden. Add a domain here when a new ops sender earns its place.
+  const GMAIL_ALLOW_DOMAINS = [
+    "anthropic.com",
+    "claude.com",
+    "buffer.com",
+    "stripe.com",
+    "runpod.io",
+    "resend.com",
+    "supabase.io",
+    "supabase.com",
+    "supabase.co",
+    "vercel.com",
+    "railway.app",
+    "github.com",
+    "cloudflare.com",
+    "sovereign-synthesis.com",
+    "openai.com",
+    "notifications.elevenlabs.io",
   ];
   async function fetchGmail() {
     const { data } = await supabase
@@ -690,11 +704,11 @@ export default function MissionControl() {
       .select("*")
       .eq("archived", false)
       .order("received_at", { ascending: false })
-      .limit(30);
+      .limit(60);
     if (!data) return;
     const filtered = data.filter((m: any) => {
       const addr = (m.sender_email || '').toLowerCase();
-      return !GMAIL_NOISE_DOMAINS.some(d => addr.includes(d.toLowerCase()));
+      return GMAIL_ALLOW_DOMAINS.some(d => addr.includes(d.toLowerCase()));
     });
     setGmailMessages(filtered.slice(0, 15));
   }
@@ -1322,7 +1336,7 @@ export default function MissionControl() {
                 </div>
               ))
             ) : (
-              <div className="pipeline-empty">No recent distributions</div>
+              <div className="pipeline-empty">No distributions in the last 72 hours. Pipeline may be jammed — see Connections.</div>
             )}
           </div>
 
