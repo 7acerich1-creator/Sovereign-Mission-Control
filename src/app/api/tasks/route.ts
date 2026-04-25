@@ -79,7 +79,8 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const tasks: CanonicalTask[] = (data ?? []).map((row: Record<string, unknown>) => ({
+  const rows = (data ?? []) as unknown as Record<string, unknown>[];
+  const tasks: CanonicalTask[] = rows.map((row) => ({
     id: String(row.id),
     title: String(row.title ?? ''),
     description: (row.description as string) ?? null,

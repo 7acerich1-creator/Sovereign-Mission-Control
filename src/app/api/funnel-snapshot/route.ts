@@ -71,7 +71,10 @@ async function sumColumn(
     return total;
   };
 
-  return { this_wk: sum(thisWkRows as Record<string, unknown>[]), last_wk: sum(lastWkRows as Record<string, unknown>[]) };
+  return {
+    this_wk: sum(thisWkRows as unknown as Record<string, unknown>[]),
+    last_wk: sum(lastWkRows as unknown as Record<string, unknown>[]),
+  };
 }
 
 async function countRows(
