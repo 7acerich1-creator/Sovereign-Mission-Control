@@ -75,6 +75,21 @@ type AgentHistoryEntry = {
   created_at: string;
 };
 
+type AgentActivityEntry = {
+  id: string;
+  agent_name: string; // canonical lowercase: yuki | alfred | anita | sapphire | veritas | vector
+  source:
+    | 'post'              // content_engine_queue → Alfred
+    | 'comment_drop'      // youtube_hook_drops → Yuki
+    | 'bluesky_drop'      // bluesky_hook_drops → Yuki
+    | 'comment_reply'     // youtube_comments_seen.replied_at → Yuki
+    | 'draft';            // content_drafts.agent_name
+  title: string;
+  body: string;
+  created_at: string;
+  brand?: string | null;
+};
+
 type CommandQueueEntry = {
   id: string;
   command: string;
@@ -328,6 +343,7 @@ export default function MissionControl() {
   const [revenue, setRevenue] = useState<RevenueEntry[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [agentHistory, setAgentHistory] = useState<AgentHistoryEntry[]>([]);
+  const [agentActivity, setAgentActivity] = useState<AgentActivityEntry[]>([]);
   const [commandQueue, setCommandQueue] = useState<CommandQueueEntry[]>([]);
   const [contentTransmissions, setContentTransmissions] = useState<ContentTransmission[]>([]);
   const [vidRush, setVidRush] = useState<VidRushEntry[]>([]);
@@ -592,6 +608,129 @@ export default function MissionControl() {
     setAgentHistory(merged);
   }
 
+  /**
+   * Production work tables — what each agent is actually doing on the railway.
+   * These don't have agent_name columns; ownership is hard-coded by role:
+   *   - Alfred  → content_engine_queue posts (publishing/operations)
+   *   - Yuki    → youtube_hook_drops, bluesky_hook_drops, youtube_comments_seen replies
+   *   - Mixed   → content_drafts (uses its own agent_name col: alfred/anita/yuki)
+   */
+  async function fetchAgentActivity() {
+    const out: AgentActivityEntry[] = [];
+
+    // Alfred — published posts
+    const { data: posted } = await supabase
+      .from("content_engine_queue")
+      .select("id, brand, niche, universal_text, posted_at, channels_hit, channels_total, status")
+      .not("posted_at", "is", null)
+      .order("posted_at", { ascending: false })
+      .limit(40);
+    if (posted) {
+      for (const p of posted) {
+        const niche = p.niche ?? "untagged";
+        const ch = p.channels_total ? `${p.channels_hit ?? 0}/${p.channels_total} channels` : (p.status ?? "");
+        out.push({
+          id: `post-${p.id}`,
+          agent_name: "alfred",
+          source: "post",
+          title: `Published — ${p.brand ?? "?"} · ${niche}${ch ? ` · ${ch}` : ""}`,
+          body: (p.universal_text ?? "").slice(0, 600),
+          created_at: p.posted_at,
+          brand: p.brand,
+        });
+      }
+    }
+
+    // Yuki — YouTube hook drops (comments on subscribed channels)
+    const { data: ytHooks } = await supabase
+      .from("youtube_hook_drops")
+      .select("id, brand, subscribed_channel_title, target_video_title, comment_text, posted_at, error")
+      .not("posted_at", "is", null)
+      .order("posted_at", { ascending: false })
+      .limit(20);
+    if (ytHooks) {
+      for (const h of ytHooks) {
+        out.push({
+          id: `ythook-${h.id}`,
+          agent_name: "yuki",
+          source: "comment_drop",
+          title: `YT hook drop — ${h.subscribed_channel_title ?? "?"} · ${h.target_video_title ?? "?"}`,
+          body: h.comment_text ?? "",
+          created_at: h.posted_at,
+          brand: h.brand,
+        });
+      }
+    }
+
+    // Yuki — Bluesky drops
+    const { data: bsky } = await supabase
+      .from("bluesky_hook_drops")
+      .select("id, brand, target_author_handle, target_text_preview, comment_text, posted_at, error")
+      .not("posted_at", "is", null)
+      .order("posted_at", { ascending: false })
+      .limit(20);
+    if (bsky) {
+      for (const b of bsky) {
+        out.push({
+          id: `bsky-${b.id}`,
+          agent_name: "yuki",
+          source: "bluesky_drop",
+          title: `Bluesky drop — @${b.target_author_handle ?? "?"}`,
+          body: b.comment_text ?? "",
+          created_at: b.posted_at,
+          brand: b.brand,
+        });
+      }
+    }
+
+    // Yuki — replies sent on her own video comments
+    const { data: replies } = await supabase
+      .from("youtube_comments_seen")
+      .select("comment_id, brand, video_title, author_display_name, reply_text, replied_at")
+      .not("replied_at", "is", null)
+      .order("replied_at", { ascending: false })
+      .limit(20);
+    if (replies) {
+      for (const r of replies) {
+        out.push({
+          id: `ytreply-${r.comment_id}`,
+          agent_name: "yuki",
+          source: "comment_reply",
+          title: `Replied to ${r.author_display_name ?? "?"} on ${r.video_title ?? "video"}`,
+          body: r.reply_text ?? "",
+          created_at: r.replied_at,
+          brand: r.brand,
+        });
+      }
+    }
+
+    // Mixed — content_drafts uses its own agent_name col
+    const { data: drafts } = await supabase
+      .from("content_drafts")
+      .select("id, agent_name, brand, content, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (drafts) {
+      for (const d of drafts) {
+        const a = (d.agent_name ?? "").toLowerCase();
+        if (!a) continue;
+        const body = (d.content ?? "").toString();
+        out.push({
+          id: `draft-${d.id}`,
+          agent_name: a,
+          source: "draft",
+          title: `Draft — ${d.brand ?? "?"}`,
+          body: body.slice(0, 600),
+          created_at: d.created_at,
+          brand: d.brand,
+        });
+      }
+    }
+
+    out.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setAgentActivity(out);
+  }
+
   async function fetchCommandQueue() {
     const { data } = await supabase
       .from("command_queue")
@@ -820,6 +959,7 @@ export default function MissionControl() {
     fetchMetrics();
     fetchRevenue();
     fetchAgentHistory();
+    fetchAgentActivity();
     fetchCommandQueue();
     fetchContentPipeline();
     fetchGlitches();
@@ -836,6 +976,11 @@ export default function MissionControl() {
       .on("postgres_changes", { event: "*", schema: "public", table: "revenue_log" }, () => fetchRevenue())
       .on("postgres_changes", { event: "*", schema: "public", table: "agent_history" }, () => fetchAgentHistory())
       .on("postgres_changes", { event: "*", schema: "public", table: "crew_dispatch" }, () => fetchAgentHistory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_engine_queue" }, () => fetchAgentActivity())
+      .on("postgres_changes", { event: "*", schema: "public", table: "youtube_hook_drops" }, () => fetchAgentActivity())
+      .on("postgres_changes", { event: "*", schema: "public", table: "bluesky_hook_drops" }, () => fetchAgentActivity())
+      .on("postgres_changes", { event: "*", schema: "public", table: "youtube_comments_seen" }, () => fetchAgentActivity())
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_drafts" }, () => fetchAgentActivity())
       .on("postgres_changes", { event: "*", schema: "public", table: "command_queue" }, () => fetchCommandQueue())
       .on("postgres_changes", { event: "*", schema: "public", table: "content_transmissions" }, () => fetchContentPipeline())
       .on("postgres_changes", { event: "*", schema: "public", table: "vid_rush_queue" }, () => fetchContentPipeline())
@@ -999,14 +1144,15 @@ export default function MissionControl() {
 
       {/* SECTION 3 — CREW TASK BOARD removed (was noise; Tasks tab handles work tracking) */}
 
-      {/* ======= SECTION 3B — BRIEFINGS & INTEL (filtered when an agent is selected, merged with agent_history) ======= */}
+      {/* ======= SECTION 3B — BRIEFINGS & INTEL (filtered when an agent is selected, merged with agent_history + production work) ======= */}
       {(() => {
-        // Build unified activity feed: briefings + agent_history rows.
+        // Build unified activity feed: briefings + agent_history + production work rows.
         // When no agent selected, show only briefings (cross-agent intel digest).
-        // When an agent is selected, show that agent's briefings + their agent_history outputs blended by time.
+        // When an agent is selected, show that agent's complete railway: briefings + chat history + actual posts/comments/drafts.
         type ActivityRow =
           | { kind: 'briefing'; id: string; agent_name: string; created_at: string; data: typeof briefings[number] }
-          | { kind: 'history'; id: string; agent_name: string; created_at: string; data: AgentHistoryEntry };
+          | { kind: 'history'; id: string; agent_name: string; created_at: string; data: AgentHistoryEntry }
+          | { kind: 'work'; id: string; agent_name: string; created_at: string; data: AgentActivityEntry };
 
         const filteredBriefings = selectedAgent
           ? briefings.filter(b => b.agent_name?.toLowerCase() === selectedAgent.toLowerCase())
@@ -1018,11 +1164,14 @@ export default function MissionControl() {
               .filter(h => {
                 const c = (h.content ?? '').trim();
                 if (!c) return false;
-                // Skip empty / no-response stubs
                 if (c.startsWith('⚠️ No response')) return false;
                 return true;
               })
               .slice(0, 20)
+          : [];
+
+        const filteredWork: AgentActivityEntry[] = selectedAgent
+          ? agentActivity.filter(a => a.agent_name === selectedAgent.toLowerCase()).slice(0, 40)
           : [];
 
         const merged: ActivityRow[] = [
@@ -1039,6 +1188,13 @@ export default function MissionControl() {
             agent_name: h.agent_name,
             created_at: h.created_at,
             data: h,
+          })),
+          ...filteredWork.map(w => ({
+            kind: 'work' as const,
+            id: `w:${w.id}`,
+            agent_name: w.agent_name,
+            created_at: w.created_at,
+            data: w,
           })),
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -1065,7 +1221,7 @@ export default function MissionControl() {
               </h2>
               <span className="section-badge">
                 {selectedAgent
-                  ? `${merged.length} ENTRIES · ${filteredBriefings.length} BRIEFING${filteredBriefings.length === 1 ? '' : 'S'} · ${filteredHistory.length} ACTIVITY`
+                  ? `${merged.length} TOTAL · ${filteredBriefings.length}B · ${filteredHistory.length}A · ${filteredWork.length}W`
                   : `${unreadCount} UNREAD`}
               </span>
             </div>
@@ -1116,23 +1272,70 @@ export default function MissionControl() {
                       </div>
                     );
                   }
-                  // history row
-                  const h = row.data;
+                  if (row.kind === 'history') {
+                    const h = row.data;
+                    const expanded = expandedBriefings.has(row.id);
+                    const isLong = (h.content?.length ?? 0) > 220;
+                    const preview = isLong && !expanded ? h.content.slice(0, 220) + '…' : h.content;
+                    return (
+                      <div key={row.id} className="briefing-row activity-row">
+                        <div className="briefing-left">
+                          <div className="briefing-priority-dot activity-dot" />
+                          <div className="briefing-content">
+                            <div className="briefing-header-row">
+                              <span className="briefing-agent">{h.agent_name}</span>
+                              <span className="briefing-type-badge bt-activity">activity</span>
+                            </div>
+                            <span className="briefing-body" style={{ whiteSpace: expanded ? 'pre-wrap' : undefined }}>
+                              {preview}
+                            </span>
+                            {isLong && (
+                              <button
+                                className="briefing-expand-btn"
+                                onClick={() => setExpandedBriefings(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                                  return next;
+                                })}
+                              >
+                                {expanded ? '▲ Collapse' : '▼ Read full activity'}
+                              </button>
+                            )}
+                            <span className="briefing-time">{timeAgo(h.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // work row — production output (post / comment_drop / bluesky_drop / comment_reply / draft)
+                  const w = row.data;
                   const expanded = expandedBriefings.has(row.id);
-                  const isLong = (h.content?.length ?? 0) > 220;
-                  const preview = isLong && !expanded ? h.content.slice(0, 220) + '…' : h.content;
+                  const body = w.body ?? '';
+                  const isLong = body.length > 220;
+                  const preview = isLong && !expanded ? body.slice(0, 220) + '…' : body;
+                  const sourceLabel = ({
+                    post: 'published',
+                    comment_drop: 'yt drop',
+                    bluesky_drop: 'bluesky',
+                    comment_reply: 'reply',
+                    draft: 'draft',
+                  } as Record<typeof w.source, string>)[w.source];
                   return (
-                    <div key={row.id} className="briefing-row activity-row">
+                    <div key={row.id} className="briefing-row work-row">
                       <div className="briefing-left">
-                        <div className="briefing-priority-dot activity-dot" />
+                        <div className={`briefing-priority-dot work-dot work-${w.source}`} />
                         <div className="briefing-content">
                           <div className="briefing-header-row">
-                            <span className="briefing-agent">{h.agent_name}</span>
-                            <span className="briefing-type-badge bt-activity">activity</span>
+                            <span className="briefing-agent">{w.agent_name.toUpperCase()}</span>
+                            <span className={`briefing-type-badge bt-work bt-${w.source}`}>{sourceLabel}</span>
+                            {w.brand && <span className="work-brand">{w.brand}</span>}
                           </div>
-                          <span className="briefing-body" style={{ whiteSpace: expanded ? 'pre-wrap' : undefined }}>
-                            {preview}
-                          </span>
+                          <span className="briefing-title">{w.title}</span>
+                          {body && (
+                            <span className="briefing-body" style={{ whiteSpace: expanded ? 'pre-wrap' : undefined }}>
+                              {preview}
+                            </span>
+                          )}
                           {isLong && (
                             <button
                               className="briefing-expand-btn"
@@ -1142,10 +1345,10 @@ export default function MissionControl() {
                                 return next;
                               })}
                             >
-                              {expanded ? '▲ Collapse' : '▼ Read full activity'}
+                              {expanded ? '▲ Collapse' : '▼ Read full output'}
                             </button>
                           )}
-                          <span className="briefing-time">{timeAgo(h.created_at)}</span>
+                          <span className="briefing-time">{timeAgo(w.created_at)}</span>
                         </div>
                       </div>
                     </div>
@@ -2442,6 +2645,32 @@ export default function MissionControl() {
         .activity-row { background: rgba(124, 92, 252, 0.025); }
         :global([data-theme="light"]) .activity-row { background: rgba(124, 92, 252, 0.04); }
         .bt-activity { color: #7C5CFC; border-color: rgba(124,92,252,0.30); background: rgba(124,92,252,0.08); }
+
+        .work-row { background: rgba(62, 247, 232, 0.025); }
+        :global([data-theme="light"]) .work-row { background: rgba(62, 247, 232, 0.05); }
+        .briefing-priority-dot.work-dot { box-shadow: 0 0 6px currentColor; }
+        .briefing-priority-dot.work-post { background: #43e97b; color: #43e97b; }
+        .briefing-priority-dot.work-comment_drop { background: #4facfe; color: #4facfe; }
+        .briefing-priority-dot.work-bluesky_drop { background: #00B7E0; color: #00B7E0; }
+        .briefing-priority-dot.work-comment_reply { background: #fddb92; color: #fddb92; }
+        .briefing-priority-dot.work-draft { background: #C9A84C; color: #C9A84C; }
+        .bt-work { font-weight: 700; }
+        .bt-post { color: #43e97b; border-color: rgba(67,233,123,0.35); background: rgba(67,233,123,0.10); }
+        .bt-comment_drop { color: #4facfe; border-color: rgba(79,172,254,0.35); background: rgba(79,172,254,0.10); }
+        .bt-bluesky_drop { color: #00B7E0; border-color: rgba(0,183,224,0.35); background: rgba(0,183,224,0.10); }
+        .bt-comment_reply { color: #fddb92; border-color: rgba(253,219,146,0.40); background: rgba(253,219,146,0.10); }
+        .bt-draft { color: #C9A84C; border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.10); }
+        .work-brand {
+          font-size: 9px;
+          font-family: var(--font-mono);
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          color: var(--color-text-muted);
+          padding: 1px 6px;
+          border-radius: 3px;
+          border: 1px solid rgba(255,255,255,0.06);
+        }
+        :global([data-theme="light"]) .work-brand { border-color: rgba(0,0,0,0.08); }
         .briefing-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .briefing-header-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .briefing-agent {
