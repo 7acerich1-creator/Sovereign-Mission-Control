@@ -6,14 +6,19 @@ import { createClient } from '@supabase/supabase-js';
 
    GET /api/funnel-snapshot
 
-   Returns the bottom-line "are we moving toward $1.2M" view:
-     - YT views combined (this/last week)
-     - Landing visitors (this/last week, target 500/wk)
-     - Email signups via `initiates` (this/last week, target 50/wk)
-     - Paid conversions via `revenue_log` (this/last week, target 1/wk)
+   Returns the bottom-line "are we moving toward $1.2M" view.
 
-   Reads from Supabase project wzthxohtgojenukmdubz.
-   Tables: landing_analytics, initiates, youtube_analytics, revenue_log
+   Time-bucketing rules (HONEST math — see feedback memory):
+     YT views      : SUM(views) over videos with published_at in window.
+                     We have ONE snapshot per video (no history), so this
+                     is "views accumulated by content shipped that week"
+                     — a true weekly performance metric, not all-time.
+     Landing       : SUM(visitors) using `period_start` (the analytics
+                     window the row represents), NOT `fetched_at` (ingest).
+     Email signups : COUNT(initiates) by created_at.
+     Conversions   : COUNT(revenue_log) by created_at.
+
+   All deltas computed against the prior 7-day window (last_wk).
    ══════════════════════════════════════════════════════════ */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -33,28 +38,26 @@ function pctDelta(thisWk: number, lastWk: number): number | null {
   return ((thisWk - lastWk) / lastWk) * 100;
 }
 
-async function sumColumn(
+async function sumColumnByWindow(
   table: string,
   column: string,
-  fetchedAtCol: string,
+  windowCol: string,
 ): Promise<WindowedNumber> {
   const now = Date.now();
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
   const fourteenDaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  // This week: rows from now-7d to now
   const { data: thisWkRows, error: e1 } = await supabase
     .from(table)
     .select(column)
-    .gte(fetchedAtCol, sevenDaysAgo);
+    .gte(windowCol, sevenDaysAgo);
   if (e1) throw new Error(`${table} this_wk: ${e1.message}`);
 
-  // Last week: rows from now-14d to now-7d
   const { data: lastWkRows, error: e2 } = await supabase
     .from(table)
     .select(column)
-    .gte(fetchedAtCol, fourteenDaysAgo)
-    .lt(fetchedAtCol, sevenDaysAgo);
+    .gte(windowCol, fourteenDaysAgo)
+    .lt(windowCol, sevenDaysAgo);
   if (e2) throw new Error(`${table} last_wk: ${e2.message}`);
 
   const sum = (rows: Record<string, unknown>[] | null) => {
@@ -77,9 +80,9 @@ async function sumColumn(
   };
 }
 
-async function countRows(
+async function countRowsByWindow(
   table: string,
-  createdAtCol: string,
+  windowCol: string,
 ): Promise<WindowedNumber> {
   const now = Date.now();
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -88,14 +91,14 @@ async function countRows(
   const { count: thisWk, error: e1 } = await supabase
     .from(table)
     .select('*', { count: 'exact', head: true })
-    .gte(createdAtCol, sevenDaysAgo);
+    .gte(windowCol, sevenDaysAgo);
   if (e1) throw new Error(`${table} this_wk: ${e1.message}`);
 
   const { count: lastWk, error: e2 } = await supabase
     .from(table)
     .select('*', { count: 'exact', head: true })
-    .gte(createdAtCol, fourteenDaysAgo)
-    .lt(createdAtCol, sevenDaysAgo);
+    .gte(windowCol, fourteenDaysAgo)
+    .lt(windowCol, sevenDaysAgo);
   if (e2) throw new Error(`${table} last_wk: ${e2.message}`);
 
   return { this_wk: thisWk ?? 0, last_wk: lastWk ?? 0 };
@@ -103,27 +106,29 @@ async function countRows(
 
 export async function GET() {
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { error: 'Supabase env vars missing' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Supabase env vars missing' }, { status: 500 });
   }
 
   try {
     const [landing, signups, ytViews, conversions] = await Promise.all([
-      sumColumn('landing_analytics', 'visitors', 'fetched_at').catch((e) => {
+      // Landing: sum delta visitors by analytics period (NOT ingest time)
+      sumColumnByWindow('landing_analytics', 'visitors', 'period_start').catch((e) => {
         console.error('[funnel-snapshot] landing fail:', e);
         return { this_wk: 0, last_wk: 0 };
       }),
-      countRows('initiates', 'created_at').catch((e) => {
+      // Signups: count rows by created_at
+      countRowsByWindow('initiates', 'created_at').catch((e) => {
         console.error('[funnel-snapshot] signups fail:', e);
         return { this_wk: 0, last_wk: 0 };
       }),
-      sumColumn('youtube_analytics', 'views', 'fetched_at').catch((e) => {
+      // YT views: sum views from videos published in window
+      // (one snapshot per video, so this measures content-shipped performance)
+      sumColumnByWindow('youtube_analytics', 'views', 'published_at').catch((e) => {
         console.error('[funnel-snapshot] yt fail:', e);
         return { this_wk: 0, last_wk: 0 };
       }),
-      countRows('revenue_log', 'created_at').catch((e) => {
+      // Conversions: count revenue_log rows by created_at
+      countRowsByWindow('revenue_log', 'created_at').catch((e) => {
         console.error('[funnel-snapshot] revenue fail:', e);
         return { this_wk: 0, last_wk: 0 };
       }),
@@ -146,7 +151,7 @@ export async function GET() {
       metrics: [
         {
           key: 'yt_views',
-          label: 'Top-of-funnel attention (YT views combined)',
+          label: 'YT views (from videos published in window)',
           this_wk: ytViews.this_wk,
           last_wk: ytViews.last_wk,
           target: targets.yt_views,

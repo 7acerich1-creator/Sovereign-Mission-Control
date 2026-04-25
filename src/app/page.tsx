@@ -945,8 +945,10 @@ export default function MissionControl() {
           <Link href="/crew" className="section-link">VIEW FULL CREW &rarr;</Link>
         </div>
 
-        {/* HERO PANEL — shown when an agent is clicked */}
-        {selectedAgent && (() => {
+        {/* HERO PANEL REMOVED — agent click filters briefings panel below.
+            Telegram LLM chat view retired from MC home (still lives at /crew/[agent]).
+            Block retained in JSX-dead branch to preserve referenced functions/state.  */}
+        {selectedAgent && false && (() => {
           const agent = agentCards.find(a => a.name === selectedAgent);
           if (!agent) return null;
           const agentHistoryFiltered = agentHistory
@@ -1177,144 +1179,95 @@ export default function MissionControl() {
         </div>
       </section>
 
-      {/* ======= SECTION 3 — CREW TASK BOARD ======= */}
-      <section className="dashboard-section">
-        <div className="section-header-row">
-          <h2 className="section-heading">CREW TASK BOARD</h2>
-          <span className="section-badge">{crewTasks.length} ACTIVE</span>
-        </div>
-        <div className="card table-card">
-          <div className="table-head crew-task-head">
-            <span>AGENT</span>
-            <span>TASK</span>
-            <span>CATEGORY</span>
-            <span>PRIORITY</span>
-            <span>TYPE</span>
-            <span>STATUS</span>
-            <span>ACTION</span>
-          </div>
-          {crewTasks.length > 0 ? (
-            crewTasks.map((task) => (
-              <div key={task.id} className="table-row crew-task-row">
-                <span className="cell-agent">{task.assigned_to || "Unassigned"}</span>
-                <span className="cell-command" title={task.description ?? undefined}>{task.title}</span>
-                <span className={`cell-category cat-${task.category?.toLowerCase().replace(/\s/g, '-')}`}>{task.category || "—"}</span>
-                <span className={`cell-priority pri-${task.priority?.toLowerCase()}`}>{task.priority}</span>
-                <span className={`cell-type type-${task.type}`}>
-                  {task.type === 'ai' ? <><Bot size={12} /> AI</> : <><Users size={12} /> Human</>}
-                </span>
-                <span className={`cell-status ${task.status?.toLowerCase().replace(/\s/g, '-')}`}>{task.status}</span>
-                <span className="cell-actions">
-                  {task.status === "To Do" && (
-                    <button
-                      className="task-action-btn activate-btn"
-                      title="Start this task"
-                      onClick={() => approveCrewTask(task.id)}
-                    >
-                      <Play size={14} /> <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', marginLeft: '2px' }}>START</span>
-                    </button>
-                  )}
-                  {task.status === "In Progress" && (
-                    <button
-                      className="task-action-btn complete-btn"
-                      title="Mark complete"
-                      onClick={() => completeCrewTask(task.id)}
-                    >
-                      <CheckCircle size={14} /> <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', marginLeft: '2px' }}>DONE</span>
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="table-empty">
-              <Terminal size={24} />
-              <span>NO PENDING TASKS IN QUEUE</span>
-            </div>
-          )}
-        </div>
+      {/* SECTION 3 — CREW TASK BOARD removed (was noise; Tasks tab handles work tracking) */}
 
-        {/* Legacy command queue — fallback */}
-        {commandQueue.length > 0 && (
-          <div className="card table-card" style={{ marginTop: 12 }}>
-            <div className="sub-header" style={{ padding: '8px 16px' }}>
-              <Terminal size={14} />
-              <span>COMMAND QUEUE (LEGACY)</span>
-              <span className="sub-count">{commandQueue.length}</span>
+      {/* ======= SECTION 3B — BRIEFINGS & INTEL (filtered when an agent is selected) ======= */}
+      {(() => {
+        const filteredBriefings = selectedAgent
+          ? briefings.filter(b => b.agent_name?.toLowerCase() === selectedAgent.toLowerCase())
+          : briefings;
+        const unreadCount = filteredBriefings.filter(b => b.status === 'unread').length;
+        return (
+          <section className="dashboard-section">
+            <div className="section-header-row">
+              <h2 className="section-heading">
+                BRIEFINGS &amp; INTEL
+                {selectedAgent && (
+                  <span className="briefings-filter-chip">
+                    {selectedAgent.toUpperCase()}
+                    <button
+                      className="briefings-filter-clear"
+                      onClick={() => setSelectedAgent(null)}
+                      title="Clear filter"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                )}
+              </h2>
+              <span className="section-badge">
+                {selectedAgent
+                  ? `${filteredBriefings.length} FROM ${selectedAgent.toUpperCase()}`
+                  : `${unreadCount} UNREAD`}
+              </span>
             </div>
-            {commandQueue.map((task) => (
-              <div key={task.id} className="table-row">
-                <span className="cell-agent">{task.agent_name || "Unassigned"}</span>
-                <span className="cell-command">{task.command}</span>
-                <span className={`cell-status ${task.status?.toLowerCase()}`}>{task.status}</span>
-                <span className="cell-actions">
-                  <button className="task-action-btn complete-btn" title="Complete" onClick={() => updateTaskStatus(task.id, 'completed')}>
-                    <CheckCircle size={14} />
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ======= SECTION 3B — BRIEFINGS & INTEL ======= */}
-      <section className="dashboard-section">
-        <div className="section-header-row">
-          <h2 className="section-heading">BRIEFINGS & INTEL</h2>
-          <span className="section-badge">{briefings.filter(b => b.status === 'unread').length} UNREAD</span>
-        </div>
-        <div className="card briefings-card">
-          {briefings.length > 0 ? (
-            briefings.map((b) => (
-              <div key={b.id} className={`briefing-row ${b.status === 'unread' ? 'briefing-unread' : ''}`}>
-                <div className="briefing-left">
-                  <div className={`briefing-priority-dot pri-${b.priority}`} />
-                  <div className="briefing-content">
-                    <div className="briefing-header-row">
-                      <span className="briefing-agent">{b.agent_name}</span>
-                      <span className={`briefing-type-badge bt-${b.briefing_type?.replace(/_/g, '-')}`}>{b.briefing_type?.replace(/_/g, ' ')}</span>
-                      {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
+            <div className="card briefings-card">
+              {filteredBriefings.length > 0 ? (
+                filteredBriefings.map((b) => (
+                  <div key={b.id} className={`briefing-row ${b.status === 'unread' ? 'briefing-unread' : ''}`}>
+                    <div className="briefing-left">
+                      <div className={`briefing-priority-dot pri-${b.priority}`} />
+                      <div className="briefing-content">
+                        <div className="briefing-header-row">
+                          <span className="briefing-agent">{b.agent_name}</span>
+                          <span className={`briefing-type-badge bt-${b.briefing_type?.replace(/_/g, '-')}`}>{b.briefing_type?.replace(/_/g, ' ')}</span>
+                          {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
+                        </div>
+                        <span className="briefing-title">{b.title}</span>
+                        <span className="briefing-body" style={{ whiteSpace: expandedBriefings.has(b.id) ? 'pre-wrap' : undefined }}>
+                          {expandedBriefings.has(b.id) ? b.body : (b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body)}
+                        </span>
+                        {b.body?.length > 160 && (
+                          <button
+                            className="briefing-expand-btn"
+                            onClick={() => setExpandedBriefings(prev => {
+                              const next = new Set(prev);
+                              if (next.has(b.id)) next.delete(b.id); else next.add(b.id);
+                              return next;
+                            })}
+                          >
+                            {expandedBriefings.has(b.id) ? '▲ Collapse' : '▼ Read full briefing'}
+                          </button>
+                        )}
+                        <span className="briefing-time">{timeAgo(b.created_at)}</span>
+                      </div>
                     </div>
-                    <span className="briefing-title">{b.title}</span>
-                    <span className="briefing-body" style={{ whiteSpace: expandedBriefings.has(b.id) ? 'pre-wrap' : undefined }}>
-                      {expandedBriefings.has(b.id) ? b.body : (b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body)}
-                    </span>
-                    {b.body?.length > 160 && (
-                      <button
-                        className="briefing-expand-btn"
-                        onClick={() => setExpandedBriefings(prev => {
-                          const next = new Set(prev);
-                          if (next.has(b.id)) next.delete(b.id); else next.add(b.id);
-                          return next;
-                        })}
-                      >
-                        {expandedBriefings.has(b.id) ? '▲ Collapse' : '▼ Read full briefing'}
+                    <div className="briefing-actions">
+                      {b.status === 'unread' && (
+                        <button className="task-action-btn activate-btn" title="Mark read" onClick={() => markBriefingRead(b.id)}>
+                          <Eye size={14} />
+                        </button>
+                      )}
+                      <button className="task-action-btn pause-btn" title="Archive" onClick={() => archiveBriefing(b.id)}>
+                        <Archive size={14} />
                       </button>
-                    )}
-                    <span className="briefing-time">{timeAgo(b.created_at)}</span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="table-empty">
+                  <Inbox size={24} />
+                  <span>
+                    {selectedAgent
+                      ? `NO BRIEFINGS FROM ${selectedAgent.toUpperCase()} YET`
+                      : 'NO BRIEFINGS — ALL CLEAR'}
+                  </span>
                 </div>
-                <div className="briefing-actions">
-                  {b.status === 'unread' && (
-                    <button className="task-action-btn activate-btn" title="Mark read" onClick={() => markBriefingRead(b.id)}>
-                      <Eye size={14} />
-                    </button>
-                  )}
-                  <button className="task-action-btn pause-btn" title="Archive" onClick={() => archiveBriefing(b.id)}>
-                    <Archive size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="table-empty">
-              <Inbox size={24} />
-              <span>NO BRIEFINGS — ALL CLEAR</span>
+              )}
             </div>
-          )}
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* ======= TWO-COLUMN LAYOUT ======= */}
       <div className="two-col-layout">
@@ -2519,6 +2472,46 @@ export default function MissionControl() {
         .cell-status.in-progress { color: #43e97b; }
 
         /* -- BRIEFINGS -- */
+        .briefings-filter-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-left: 12px;
+          padding: 3px 4px 3px 10px;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #C9A84C;
+          background: rgba(201, 168, 76, 0.10);
+          border: 1px solid rgba(201, 168, 76, 0.30);
+          border-radius: 12px;
+          vertical-align: middle;
+        }
+        .briefings-filter-clear {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          background: rgba(201, 168, 76, 0.18);
+          border: none;
+          border-radius: 50%;
+          color: #C9A84C;
+          cursor: pointer;
+          padding: 0;
+          transition: background 0.15s ease;
+        }
+        .briefings-filter-clear:hover { background: rgba(201, 168, 76, 0.35); }
+        :global([data-theme="light"]) .briefings-filter-chip {
+          color: #8A6F1E;
+          background: rgba(201, 168, 76, 0.12);
+          border-color: rgba(201, 168, 76, 0.40);
+        }
+        :global([data-theme="light"]) .briefings-filter-clear {
+          background: rgba(201, 168, 76, 0.20);
+          color: #8A6F1E;
+        }
         .briefings-card {
           display: flex;
           flex-direction: column;
