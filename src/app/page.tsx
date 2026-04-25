@@ -999,17 +999,57 @@ export default function MissionControl() {
 
       {/* SECTION 3 — CREW TASK BOARD removed (was noise; Tasks tab handles work tracking) */}
 
-      {/* ======= SECTION 3B — BRIEFINGS & INTEL (filtered when an agent is selected) ======= */}
+      {/* ======= SECTION 3B — BRIEFINGS & INTEL (filtered when an agent is selected, merged with agent_history) ======= */}
       {(() => {
+        // Build unified activity feed: briefings + agent_history rows.
+        // When no agent selected, show only briefings (cross-agent intel digest).
+        // When an agent is selected, show that agent's briefings + their agent_history outputs blended by time.
+        type ActivityRow =
+          | { kind: 'briefing'; id: string; agent_name: string; created_at: string; data: typeof briefings[number] }
+          | { kind: 'history'; id: string; agent_name: string; created_at: string; data: AgentHistoryEntry };
+
         const filteredBriefings = selectedAgent
           ? briefings.filter(b => b.agent_name?.toLowerCase() === selectedAgent.toLowerCase())
           : briefings;
+
+        const filteredHistory: AgentHistoryEntry[] = selectedAgent
+          ? agentHistory
+              .filter(h => h.agent_name?.toLowerCase() === selectedAgent.toLowerCase())
+              .filter(h => {
+                const c = (h.content ?? '').trim();
+                if (!c) return false;
+                // Skip empty / no-response stubs
+                if (c.startsWith('⚠️ No response')) return false;
+                return true;
+              })
+              .slice(0, 20)
+          : [];
+
+        const merged: ActivityRow[] = [
+          ...filteredBriefings.map(b => ({
+            kind: 'briefing' as const,
+            id: `b:${b.id}`,
+            agent_name: b.agent_name ?? '',
+            created_at: b.created_at,
+            data: b,
+          })),
+          ...filteredHistory.map(h => ({
+            kind: 'history' as const,
+            id: `h:${h.id}`,
+            agent_name: h.agent_name,
+            created_at: h.created_at,
+            data: h,
+          })),
+        ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
         const unreadCount = filteredBriefings.filter(b => b.status === 'unread').length;
+        const heading = selectedAgent ? 'AGENT INTEL' : 'BRIEFINGS & INTEL';
+
         return (
           <section className="dashboard-section">
             <div className="section-header-row">
               <h2 className="section-heading">
-                BRIEFINGS &amp; INTEL
+                {heading}
                 {selectedAgent && (
                   <span className="briefings-filter-chip">
                     {selectedAgent.toUpperCase()}
@@ -1025,59 +1065,98 @@ export default function MissionControl() {
               </h2>
               <span className="section-badge">
                 {selectedAgent
-                  ? `${filteredBriefings.length} FROM ${selectedAgent.toUpperCase()}`
+                  ? `${merged.length} ENTRIES · ${filteredBriefings.length} BRIEFING${filteredBriefings.length === 1 ? '' : 'S'} · ${filteredHistory.length} ACTIVITY`
                   : `${unreadCount} UNREAD`}
               </span>
             </div>
             <div className="card briefings-card">
-              {filteredBriefings.length > 0 ? (
-                filteredBriefings.map((b) => (
-                  <div key={b.id} className={`briefing-row ${b.status === 'unread' ? 'briefing-unread' : ''}`}>
-                    <div className="briefing-left">
-                      <div className={`briefing-priority-dot pri-${b.priority}`} />
-                      <div className="briefing-content">
-                        <div className="briefing-header-row">
-                          <span className="briefing-agent">{b.agent_name}</span>
-                          <span className={`briefing-type-badge bt-${b.briefing_type?.replace(/_/g, '-')}`}>{b.briefing_type?.replace(/_/g, ' ')}</span>
-                          {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
+              {merged.length > 0 ? (
+                merged.map((row) => {
+                  if (row.kind === 'briefing') {
+                    const b = row.data;
+                    return (
+                      <div key={row.id} className={`briefing-row ${b.status === 'unread' ? 'briefing-unread' : ''}`}>
+                        <div className="briefing-left">
+                          <div className={`briefing-priority-dot pri-${b.priority}`} />
+                          <div className="briefing-content">
+                            <div className="briefing-header-row">
+                              <span className="briefing-agent">{b.agent_name}</span>
+                              <span className={`briefing-type-badge bt-${b.briefing_type?.replace(/_/g, '-')}`}>{b.briefing_type?.replace(/_/g, ' ')}</span>
+                              {b.requires_action && <span className="briefing-action-flag"><Zap size={10} /> ACTION</span>}
+                            </div>
+                            <span className="briefing-title">{b.title}</span>
+                            <span className="briefing-body" style={{ whiteSpace: expandedBriefings.has(b.id) ? 'pre-wrap' : undefined }}>
+                              {expandedBriefings.has(b.id) ? b.body : (b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body)}
+                            </span>
+                            {b.body?.length > 160 && (
+                              <button
+                                className="briefing-expand-btn"
+                                onClick={() => setExpandedBriefings(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(b.id)) next.delete(b.id); else next.add(b.id);
+                                  return next;
+                                })}
+                              >
+                                {expandedBriefings.has(b.id) ? '▲ Collapse' : '▼ Read full briefing'}
+                              </button>
+                            )}
+                            <span className="briefing-time">{timeAgo(b.created_at)}</span>
+                          </div>
                         </div>
-                        <span className="briefing-title">{b.title}</span>
-                        <span className="briefing-body" style={{ whiteSpace: expandedBriefings.has(b.id) ? 'pre-wrap' : undefined }}>
-                          {expandedBriefings.has(b.id) ? b.body : (b.body?.length > 160 ? b.body.slice(0, 160) + "..." : b.body)}
-                        </span>
-                        {b.body?.length > 160 && (
-                          <button
-                            className="briefing-expand-btn"
-                            onClick={() => setExpandedBriefings(prev => {
-                              const next = new Set(prev);
-                              if (next.has(b.id)) next.delete(b.id); else next.add(b.id);
-                              return next;
-                            })}
-                          >
-                            {expandedBriefings.has(b.id) ? '▲ Collapse' : '▼ Read full briefing'}
+                        <div className="briefing-actions">
+                          {b.status === 'unread' && (
+                            <button className="task-action-btn activate-btn" title="Mark read" onClick={() => markBriefingRead(b.id)}>
+                              <Eye size={14} />
+                            </button>
+                          )}
+                          <button className="task-action-btn pause-btn" title="Archive" onClick={() => archiveBriefing(b.id)}>
+                            <Archive size={14} />
                           </button>
-                        )}
-                        <span className="briefing-time">{timeAgo(b.created_at)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // history row
+                  const h = row.data;
+                  const expanded = expandedBriefings.has(row.id);
+                  const isLong = (h.content?.length ?? 0) > 220;
+                  const preview = isLong && !expanded ? h.content.slice(0, 220) + '…' : h.content;
+                  return (
+                    <div key={row.id} className="briefing-row activity-row">
+                      <div className="briefing-left">
+                        <div className="briefing-priority-dot activity-dot" />
+                        <div className="briefing-content">
+                          <div className="briefing-header-row">
+                            <span className="briefing-agent">{h.agent_name}</span>
+                            <span className="briefing-type-badge bt-activity">activity</span>
+                          </div>
+                          <span className="briefing-body" style={{ whiteSpace: expanded ? 'pre-wrap' : undefined }}>
+                            {preview}
+                          </span>
+                          {isLong && (
+                            <button
+                              className="briefing-expand-btn"
+                              onClick={() => setExpandedBriefings(prev => {
+                                const next = new Set(prev);
+                                if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
+                                return next;
+                              })}
+                            >
+                              {expanded ? '▲ Collapse' : '▼ Read full activity'}
+                            </button>
+                          )}
+                          <span className="briefing-time">{timeAgo(h.created_at)}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="briefing-actions">
-                      {b.status === 'unread' && (
-                        <button className="task-action-btn activate-btn" title="Mark read" onClick={() => markBriefingRead(b.id)}>
-                          <Eye size={14} />
-                        </button>
-                      )}
-                      <button className="task-action-btn pause-btn" title="Archive" onClick={() => archiveBriefing(b.id)}>
-                        <Archive size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="table-empty">
                   <Inbox size={24} />
                   <span>
                     {selectedAgent
-                      ? `NO BRIEFINGS FROM ${selectedAgent.toUpperCase()} YET`
+                      ? `NO ACTIVITY FROM ${selectedAgent.toUpperCase()} YET`
                       : 'NO BRIEFINGS — ALL CLEAR'}
                   </span>
                 </div>
@@ -2359,6 +2438,10 @@ export default function MissionControl() {
         .briefing-priority-dot.pri-high { background: #E67E22; }
         .briefing-priority-dot.pri-medium { background: #C9A84C; }
         .briefing-priority-dot.pri-low { background: var(--color-text-muted); }
+        .briefing-priority-dot.activity-dot { background: #7C5CFC; box-shadow: 0 0 6px rgba(124,92,252,0.5); }
+        .activity-row { background: rgba(124, 92, 252, 0.025); }
+        :global([data-theme="light"]) .activity-row { background: rgba(124, 92, 252, 0.04); }
+        .bt-activity { color: #7C5CFC; border-color: rgba(124,92,252,0.30); background: rgba(124,92,252,0.08); }
         .briefing-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .briefing-header-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .briefing-agent {
