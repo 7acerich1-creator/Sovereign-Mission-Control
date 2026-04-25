@@ -15,7 +15,7 @@ import {
 
 type CommentRow = {
   comment_id: string;
-  brand: 'ace_richie' | 'containment_field';
+  brand: 'sovereign_synthesis' | 'containment_field';
   video_id: string;
   video_title: string | null;
   author_handle: string | null;
@@ -25,10 +25,12 @@ type CommentRow = {
   alerted_at: string | null;
 };
 
-// S113: 'Ace Richie' retired. Personal brand is now 'Sovereign Synthesis'.
-// DB enum key (brand='ace_richie') stays until a coordinated schema rename.
+// S114: 'ace_richie' enum key was wrong — DB has been writing 'sovereign_synthesis'
+// (the bot's youtube-comment-watcher uses sovereign_synthesis throughout). Type
+// union, BRAND_META key, count branch, and filter button all flipped to match
+// the actual DB value, fixing the silent-blank render bug on /signals.
 const BRAND_META: Record<CommentRow['brand'], { label: string; color: string; bg: string }> = {
-  ace_richie: {
+  sovereign_synthesis: {
     label: 'SOVEREIGN SYNTHESIS',
     color: '#C9A84C',
     bg: 'rgba(201,168,76,0.12)',
@@ -115,7 +117,7 @@ export default function SignalsPage() {
   const counts = useMemo(() => {
     let ace = 0, cf = 0;
     rows.forEach(r => {
-      if (r.brand === 'ace_richie') ace += 1;
+      if (r.brand === 'sovereign_synthesis') ace += 1;
       else if (r.brand === 'containment_field') cf += 1;
     });
     return { ace, cf, total: rows.length };
@@ -160,7 +162,7 @@ export default function SignalsPage() {
           </div>
         </div>
         <div className="s-card">
-          <div className="s-dot" style={{ background: BRAND_META.ace_richie.color }} />
+          <div className="s-dot" style={{ background: BRAND_META.sovereign_synthesis.color }} />
           <div className="s-body">
             <span className="s-label">SOVEREIGN SYNTHESIS</span>
             <span className="s-value">{counts.ace.toLocaleString()}</span>
@@ -198,9 +200,9 @@ export default function SignalsPage() {
             ALL
           </button>
           <button
-            className={`b-tab ${brandFilter === 'ace_richie' ? 'active' : ''}`}
-            onClick={() => setBrandFilter('ace_richie')}
-            style={{ '--tab-color': BRAND_META.ace_richie.color } as any}
+            className={`b-tab ${brandFilter === 'sovereign_synthesis' ? 'active' : ''}`}
+            onClick={() => setBrandFilter('sovereign_synthesis')}
+            style={{ '--tab-color': BRAND_META.sovereign_synthesis.color } as any}
           >
             SOVEREIGN SYNTHESIS ({counts.ace})
           </button>
