@@ -380,6 +380,18 @@ export default function AestheticPerformancePanel() {
           <code>youtube_analytics</code> via <code>youtube_video_id</code>. Cells stay dashed until
           the Sentinel Bot writes the YouTube videoId back after publish.
         </div>
+        <div className="apf-scope-note">
+          <em>Retention/CTR pending YT analytics scope re-consent.</em>
+          <a
+            href={PLAN_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="apf-why-link"
+            title="Read the 30-video A/B/C plan in Sentinel Bot NORTH_STAR"
+          >
+            Why this matters →
+          </a>
+        </div>
       </div>
 
       <style jsx>{`
@@ -618,6 +630,29 @@ export default function AestheticPerformancePanel() {
         .apf-footer-dot-live {
           background: var(--accent, #e5850f);
           box-shadow: 0 0 6px var(--accent, #e5850f);
+        }
+        .apf-scope-note {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 4px;
+          font-size: 10px;
+          color: var(--text-secondary, #6b7280);
+          font-family: "Space Mono", ui-monospace, monospace;
+        }
+        .apf-scope-note em {
+          font-style: italic;
+        }
+        .apf-why-link {
+          color: #C9A84C;
+          text-decoration: none;
+          letter-spacing: 0.06em;
+          font-weight: 700;
+        }
+        .apf-why-link:hover {
+          color: #E8C56A;
         }
 
         @media (max-width: 1100px) {

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import AestheticPerformancePanel from "@/components/home/AestheticPerformancePanel";
+import AudienceFunnelSnapshot from "@/components/dashboard/AudienceFunnelSnapshot";
+import TasksKanban from "@/components/dashboard/TasksKanban";
 import {
   Activity,
   Terminal,
@@ -893,6 +895,9 @@ export default function MissionControl() {
           zIndex: 0,
         }}
       />
+      {/* ======= SECTION 0 — AUDIENCE FUNNEL SNAPSHOT (hero band) ======= */}
+      <AudienceFunnelSnapshot />
+
       {/* ======= SECTION 1 — MISSION STATUS BAR ======= */}
       <header className="mission-status-bar">
         <div className="msb-header">
@@ -930,6 +935,9 @@ export default function MissionControl() {
           </div>
         </div>
       </header>
+
+      {/* ======= SECTION 1.4 — TASKS & PROJECTS KANBAN (human + AI) ======= */}
+      <TasksKanban />
 
       {/* ======= SECTION 1.5 — AESTHETIC PERFORMANCE (30-video A/B/C test, first outcome tile) ======= */}
       <AestheticPerformancePanel />
