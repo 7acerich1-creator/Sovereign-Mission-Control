@@ -654,6 +654,15 @@ export default function AestheticPerformancePanel() {
         .apf-why-link:hover {
           color: #E8C56A;
         }
+        :global([data-theme="light"]) .apf-why-link {
+          color: #8A6F1E;
+        }
+        :global([data-theme="light"]) .apf-why-link:hover {
+          color: #B8901E;
+        }
+        :global([data-theme="light"]) .apf-scope-note {
+          color: rgba(26, 26, 46, 0.55);
+        }
 
         @media (max-width: 1100px) {
           .apf-grid-header,

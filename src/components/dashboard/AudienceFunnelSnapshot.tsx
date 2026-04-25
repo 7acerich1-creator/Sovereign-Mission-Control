@@ -153,6 +153,17 @@ export default function AudienceFunnelSnapshot() {
           gap: 16px;
           overflow: hidden;
         }
+        :global([data-theme="light"]) .afs-card {
+          background:
+            radial-gradient(120% 140% at 0% 0%, rgba(201, 168, 76, 0.10), transparent 55%),
+            radial-gradient(110% 130% at 100% 0%, rgba(124, 92, 252, 0.04), transparent 60%),
+            #FFFFFF;
+          border-color: rgba(201, 168, 76, 0.30);
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(26, 26, 46, 0.08);
+        }
+        :global([data-theme="light"]) .afs-card::before {
+          background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.45), transparent);
+        }
         .afs-card::before {
           content: "";
           position: absolute;
@@ -182,12 +193,19 @@ export default function AudienceFunnelSnapshot() {
           text-shadow: 0 0 32px rgba(62, 247, 232, 0.25);
           letter-spacing: -0.01em;
         }
+        :global([data-theme="light"]) .afs-headline-value {
+          color: #0E9E94;
+          text-shadow: none;
+        }
         .afs-headline-target {
           font-family: var(--font-mono, "Space Mono", monospace);
           font-size: 14px;
           font-weight: 600;
           color: rgba(232, 228, 240, 0.55);
           letter-spacing: 0.04em;
+        }
+        :global([data-theme="light"]) .afs-headline-target {
+          color: rgba(26, 26, 46, 0.55);
         }
         .afs-tag {
           font-family: var(--font-mono, "Space Mono", monospace);
@@ -200,6 +218,11 @@ export default function AudienceFunnelSnapshot() {
           background: rgba(201, 168, 76, 0.10);
           border: 1px solid rgba(201, 168, 76, 0.28);
         }
+        :global([data-theme="light"]) .afs-tag {
+          color: #8A6F1E;
+          background: rgba(201, 168, 76, 0.12);
+          border-color: rgba(201, 168, 76, 0.35);
+        }
 
         .afs-progress-track {
           height: 6px;
@@ -208,12 +231,19 @@ export default function AudienceFunnelSnapshot() {
           overflow: hidden;
           position: relative;
         }
+        :global([data-theme="light"]) .afs-progress-track {
+          background: rgba(26, 26, 46, 0.08);
+        }
         .afs-progress-fill {
           height: 100%;
           background: linear-gradient(90deg, #3EF7E8, #7C5CFC);
           border-radius: 3px;
           transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
           box-shadow: 0 0 18px rgba(62, 247, 232, 0.35);
+        }
+        :global([data-theme="light"]) .afs-progress-fill {
+          background: linear-gradient(90deg, #0E9E94, #7C5CFC);
+          box-shadow: 0 0 12px rgba(14, 158, 148, 0.35);
         }
 
         .afs-error {
@@ -228,6 +258,9 @@ export default function AudienceFunnelSnapshot() {
           border-top: 1px solid rgba(124, 92, 252, 0.10);
           padding-top: 14px;
         }
+        :global([data-theme="light"]) .afs-table {
+          border-top-color: rgba(26, 26, 46, 0.08);
+        }
         .afs-table-head, .afs-row {
           display: grid;
           grid-template-columns: 1.6fr 0.8fr 0.8fr 0.9fr 0.6fr;
@@ -240,6 +273,9 @@ export default function AudienceFunnelSnapshot() {
           padding-bottom: 8px;
           border-bottom: 1px dashed rgba(124, 92, 252, 0.14);
         }
+        :global([data-theme="light"]) .afs-table-head {
+          border-bottom-color: rgba(26, 26, 46, 0.10);
+        }
         .afs-th {
           font-family: var(--font-mono, "Space Mono", monospace);
           font-size: 9px;
@@ -247,6 +283,9 @@ export default function AudienceFunnelSnapshot() {
           text-transform: uppercase;
           color: rgba(232, 228, 240, 0.45);
           font-weight: 700;
+        }
+        :global([data-theme="light"]) .afs-th {
+          color: rgba(26, 26, 46, 0.50);
         }
         .afs-th-num, .afs-td-num {
           text-align: right;
@@ -256,9 +295,15 @@ export default function AudienceFunnelSnapshot() {
           border-bottom: 1px solid rgba(124, 92, 252, 0.06);
           transition: background 0.2s ease;
         }
+        :global([data-theme="light"]) .afs-row {
+          border-bottom-color: rgba(26, 26, 46, 0.05);
+        }
         .afs-row:last-child { border-bottom: none; }
         .afs-row:hover {
           background: rgba(124, 92, 252, 0.04);
+        }
+        :global([data-theme="light"]) .afs-row:hover {
+          background: rgba(124, 92, 252, 0.05);
         }
         .afs-td-label {
           font-size: 13px;
@@ -273,15 +318,24 @@ export default function AudienceFunnelSnapshot() {
         .afs-num-now {
           color: #3EF7E8;
         }
+        :global([data-theme="light"]) .afs-num-now {
+          color: #0E9E94;
+        }
         .afs-num-prev {
           color: rgba(232, 228, 240, 0.45);
           font-weight: 500;
+        }
+        :global([data-theme="light"]) .afs-num-prev {
+          color: rgba(26, 26, 46, 0.50);
         }
         .afs-num-target {
           color: #C9A84C;
           font-size: 11px;
           font-weight: 600;
           letter-spacing: 0.04em;
+        }
+        :global([data-theme="light"]) .afs-num-target {
+          color: #8A6F1E;
         }
         .afs-delta {
           font-size: 12px;
@@ -291,6 +345,7 @@ export default function AudienceFunnelSnapshot() {
         .afs-delta-up { color: #1D9E75; }
         .afs-delta-down { color: #D95555; }
         .afs-delta-neutral { color: rgba(232, 228, 240, 0.4); }
+        :global([data-theme="light"]) .afs-delta-neutral { color: rgba(26, 26, 46, 0.40); }
 
         @media (max-width: 720px) {
           .afs-card { padding: 20px; }

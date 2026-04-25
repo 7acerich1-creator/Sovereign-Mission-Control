@@ -7,7 +7,6 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import AestheticPerformancePanel from "@/components/home/AestheticPerformancePanel";
 import AudienceFunnelSnapshot from "@/components/dashboard/AudienceFunnelSnapshot";
-import TasksKanban from "@/components/dashboard/TasksKanban";
 import {
   Activity,
   Terminal,
@@ -935,9 +934,6 @@ export default function MissionControl() {
           </div>
         </div>
       </header>
-
-      {/* ======= SECTION 1.4 — TASKS & PROJECTS KANBAN (human + AI) ======= */}
-      <TasksKanban />
 
       {/* ======= SECTION 1.5 — AESTHETIC PERFORMANCE (30-video A/B/C test, first outcome tile) ======= */}
       <AestheticPerformancePanel />
