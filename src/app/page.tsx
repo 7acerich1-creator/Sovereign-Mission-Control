@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import AestheticPerformancePanel from "@/components/home/AestheticPerformancePanel";
+import MilestonesWidget from "@/components/home/MilestonesWidget";
 import AudienceFunnelSnapshot from "@/components/dashboard/AudienceFunnelSnapshot";
 import {
   Activity,
@@ -1079,6 +1080,9 @@ export default function MissionControl() {
           </div>
         </div>
       </header>
+
+      {/* ======= SECTION 1.4 — CURRENT MILESTONES (channel ladder · S117 ship 2026-04-25) ======= */}
+      <MilestonesWidget />
 
       {/* ======= SECTION 1.5 — AESTHETIC PERFORMANCE (30-video A/B/C test, first outcome tile) ======= */}
       <AestheticPerformancePanel />
